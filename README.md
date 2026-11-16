@@ -1,0 +1,1 @@
+# challenge.mgimo.ai
