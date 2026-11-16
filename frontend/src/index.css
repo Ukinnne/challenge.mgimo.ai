@@ -1,12 +1,128 @@
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #eaf1f4;
-  color: #17262f;
+/* ---------- Дизайн-токены: цвета и размеры в одном месте ---------- */
+:root {
+  --bg: #eaf1f4;
+  --surface: #ffffff;
+  --ink: #17262f;
+  --muted: #586c78;
+  --line: #d3dee4;
+  --tide: #0f5c78;
+  --tide-dark: #0a4560;
+  --signal: #f2b21a;
+  --ok: #1f7a4d;
+  --danger: #b3261e;
+  --radius: 16px;
+
+  font-family: 'Onest Variable', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
 }
 
-main {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 16px;
+/* ---------- База ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  line-height: 1.5;
+  font-size: 16px;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* ---------- Каркас стартового экрана ---------- */
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  display: grid;
+  gap: 16px;
+  padding: 28px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tide);
+}
+
+.card h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  color: var(--muted);
+}
+
+.note {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- Индикатор состояния сервера ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eef3f6;
+  font-size: 14px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.pill[data-state='ok'] .dot {
+  background: var(--ok);
+}
+
+.pill[data-state='error'] .dot {
+  background: var(--danger);
+}
+
+.pill[data-state='loading'] .dot {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill[data-state='loading'] .dot {
+    animation: none;
+  }
 }
