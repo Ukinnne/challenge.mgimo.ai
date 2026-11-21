@@ -1,56 +1,37 @@
-import { useEffect, useState } from 'react'
-import Logo from './components/Logo.jsx'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useAuth } from './auth.jsx'
+import Login from './pages/Login.jsx'
+import Home from './pages/Home.jsx'
 
-const labels = {
-  loading: 'проверяем…',
-  ok: 'на связи',
-  error: 'нет связи',
-}
-
-function useCheck(url) {
-  const [status, setStatus] = useState('loading')
-
-  useEffect(() => {
-    fetch(url)
-      .then((response) => (response.ok ? setStatus('ok') : Promise.reject()))
-      .catch(() => setStatus('error'))
-  }, [url])
-
-  return status
-}
-
-function Pill({ name, status }) {
+function Splash() {
   return (
-    <div className="pill" data-state={status} role="status">
-      <span className="dot" />
-      {name}: {labels[status]}
+    <div className="splash" role="status" aria-label="Загрузка">
+      <span className="spinner" />
     </div>
   )
 }
 
+// Пускает дальше только вошедших. Остальных отправляет на страницу входа.
+function Protected() {
+  const { user, loading } = useAuth()
+  if (loading) return <Splash />
+  if (!user) return <Navigate to="/login" replace />
+  return <Outlet />
+}
+
 export default function App() {
-  const server = useCheck('/api/health')
-  const database = useCheck('/api/health/db')
+  const { user, loading } = useAuth()
 
   return (
-    <div className="page">
-      <section className="card">
-        <div className="brand">
-          <Logo size={40} />
-          <span>Деканат Next</span>
-        </div>
-        <h1>Вся учёба в одном кабинете</h1>
-        <p className="lead">
-          Расписание, оценки и справки без очередей и поиска по чатам.
-        </p>
-        <div className="pills">
-          <Pill name="Сервер" status={server} />
-          <Pill name="База данных" status={database} />
-        </div>
-        <p className="note">
-          Концепт для конкурса. Не официальный сервис вуза, все данные вымышленные.
-        </p>
-      </section>
-    </div>
+    <Routes>
+      <Route
+        path="/login"
+        element={loading ? <Splash /> : user ? <Navigate to="/" replace /> : <Login />}
+      />
+      <Route element={<Protected />}>
+        <Route path="/" element={<Home />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
