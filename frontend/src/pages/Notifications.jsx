@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
@@ -35,7 +34,7 @@ function formatEventDate(value) {
   }).format(date)
 }
 
-function AnnouncementCard({ item }) {
+export function AnnouncementCard({ item }) {
   const isDeadline = item.category === 'deadline'
 
   return (
@@ -119,7 +118,7 @@ function PersonalNotificationCard({ item, onRead, loading }) {
   )
 }
 
-function AnnouncementForm({ onCreated }) {
+export function AnnouncementForm({ onCreated }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState('announcement')
@@ -164,11 +163,13 @@ function AnnouncementForm({ onCreated }) {
 
       await onCreated()
     } catch (err) {
-      setError(
-        err.status === 403
-          ? 'У тебя нет прав для публикации объявлений'
-          : 'Не удалось опубликовать объявление. Попробуй ещё раз'
-      )
+      if (err.status === 403) {
+        setError('У тебя нет прав для публикации объявлений')
+      } else if (err.status === 422 || err.status === 400) {
+        setError('Проверь заголовок, текст и дату публикации')
+      } else {
+        setError('Не удалось опубликовать объявление. Попробуй ещё раз')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -205,9 +206,10 @@ function AnnouncementForm({ onCreated }) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Например, Изменение расписания"
-            maxLength={200}
+            maxLength={160}
             required
           />
+          <small>{title.length}/160 символов</small>
         </label>
 
         <label className="notification-field">
@@ -217,6 +219,7 @@ function AnnouncementForm({ onCreated }) {
             onChange={(event) => setBody(event.target.value)}
             placeholder="Напиши текст объявления..."
             rows={4}
+            maxLength={5000}
             required
           />
         </label>
@@ -227,8 +230,11 @@ function AnnouncementForm({ onCreated }) {
             value={targetGroup}
             onChange={(event) => setTargetGroup(event.target.value)}
             placeholder="Оставь пустым для всех"
+            maxLength={64}
           />
-          <small>Если поле пустое, объявление увидят все подходящие пользователи</small>
+          <small>
+            Если поле пустое, объявление увидят все подходящие пользователи
+          </small>
         </label>
 
         {category === 'deadline' && (
@@ -243,7 +249,11 @@ function AnnouncementForm({ onCreated }) {
           </label>
         )}
 
-        {error && <p className="notification-form-error" role="alert">{error}</p>}
+        {error && (
+          <p className="notification-form-error" role="alert">
+            {error}
+          </p>
+        )}
 
         <button className="btn btn-primary" type="submit" disabled={submitting}>
           {submitting ? 'Публикуем...' : 'Опубликовать'}
@@ -351,7 +361,9 @@ export default function Notifications({ user }) {
         <div className="notification-error" role="alert">
           <Icon name="alert" size={18} />
           <span>{error}</span>
-          <button type="button" onClick={loadNotifications}>Повторить</button>
+          <button type="button" onClick={loadNotifications}>
+            Повторить
+          </button>
         </div>
       )}
 
@@ -432,7 +444,9 @@ export default function Notifications({ user }) {
               <Icon name="check" size={22} />
             </div>
             <h3>Всё спокойно</h3>
-            <p>Личные уведомления о заявках и изменениях появятся здесь</p>
+            <p>
+              Личные уведомления о заявках и изменениях появятся здесь
+            </p>
           </div>
         )}
       </section>

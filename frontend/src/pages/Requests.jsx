@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth.jsx'
 import { api } from '../api.js'
@@ -25,6 +24,8 @@ const NEXT_STATUSES = {
   completed: [],
   rejected: [],
 }
+
+const ARCHIVED_STATUSES = ['completed', 'rejected']
 
 function formatDate(value) {
   if (!value) return 'Дата не указана'
@@ -337,6 +338,7 @@ export default function Requests() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [requestView, setRequestView] = useState('active')
 
   const reload = useCallback(() => {
     setReloadKey((value) => value + 1)
@@ -360,6 +362,26 @@ export default function Requests() {
     loadRequests()
   }, [loadRequests, reloadKey])
 
+  const activeRequests = requests.filter(
+    (item) => !ARCHIVED_STATUSES.includes(item.status),
+  )
+
+  const archivedRequests = requests.filter(
+    (item) => ARCHIVED_STATUSES.includes(item.status),
+  )
+
+  const visibleRequests = isStaff
+    ? requestView === 'archive'
+      ? archivedRequests
+      : activeRequests
+    : requests
+
+  const countLabel = visibleRequests.length === 1
+    ? 'заявка'
+    : visibleRequests.length >= 2 && visibleRequests.length <= 4
+      ? 'заявки'
+      : 'заявок'
+
   return (
     <>
       <PageHeader
@@ -375,11 +397,11 @@ export default function Requests() {
 
       <div className="request-list-heading">
         <div>
-          <h2>{isStaff ? 'Все обращения' : 'Мои заявки'}</h2>
+          <h2>{isStaff ? 'Рабочий список' : 'Мои заявки'}</h2>
           <p>
             {loading
               ? 'Загружаем список...'
-              : `${requests.length} ${requests.length === 1 ? 'заявка' : requests.length >= 2 && requests.length <= 4 ? 'заявки' : 'заявок'}`}
+              : `${visibleRequests.length} ${countLabel}`}
           </p>
         </div>
 
@@ -387,6 +409,34 @@ export default function Requests() {
           Обновить
         </button>
       </div>
+
+      {isStaff && (
+        <div
+          className="request-list-heading"
+          role="tablist"
+          aria-label="Разделы заявок"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={requestView === 'active'}
+            className={`btn ${requestView === 'active' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setRequestView('active')}
+          >
+            Активные ({activeRequests.length})
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={requestView === 'archive'}
+            className={`btn ${requestView === 'archive' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setRequestView('archive')}
+          >
+            Архив ({archivedRequests.length})
+          </button>
+        </div>
+      )}
 
       {error ? (
         <ErrorBox
@@ -399,19 +449,27 @@ export default function Requests() {
         />
       ) : loading ? (
         <Skeleton blocks={3} />
-      ) : requests.length === 0 ? (
+      ) : visibleRequests.length === 0 ? (
         <EmptyState
           icon="requests"
-          title={isStaff ? 'Новых обращений пока нет' : 'У вас пока нет заявок'}
+          title={
+            isStaff
+              ? requestView === 'archive'
+                ? 'Архив пока пуст'
+                : 'Активных обращений нет'
+              : 'У вас пока нет заявок'
+          }
           text={
             isStaff
-              ? 'Когда студенты отправят обращения, они появятся здесь.'
+              ? requestView === 'archive'
+                ? 'Здесь будут храниться выполненные и отклонённые заявки.'
+                : 'Новые обращения студентов появятся здесь.'
               : 'Создайте первую заявку с помощью формы выше.'
           }
         />
       ) : (
         <div className="request-list">
-          {requests.map((item) => (
+          {visibleRequests.map((item) => (
             <RequestCard
               key={item.id}
               item={item}

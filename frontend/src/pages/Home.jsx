@@ -1,11 +1,16 @@
-
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
+import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
 import Waves from '../components/Waves.jsx'
 import { useFetch } from '../hooks.js'
 import { firstName, formatDay, greeting, lessonsWord } from '../utils.js'
+import {
+  AnnouncementCard,
+  AnnouncementForm,
+} from './Notifications.jsx'
 
 const STATUS = { moved: 'Перенос', cancelled: 'Отмена', replaced: 'Замена' }
 
@@ -148,6 +153,77 @@ function Changes({ data, error }) {
   )
 }
 
+function StaffAnnouncements() {
+  const [announcements, setAnnouncements] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadAnnouncements = useCallback(async () => {
+    setError('')
+
+    try {
+      const data = await api('/notifications')
+      setAnnouncements(data.announcements ?? [])
+    } catch {
+      setError('Не удалось загрузить объявления')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAnnouncements()
+  }, [loadAnnouncements])
+
+  return (
+    <div className="notifications-page">
+      <AnnouncementForm onCreated={loadAnnouncements} />
+
+      <section className="notification-section">
+        <div className="notification-section-heading">
+          <div>
+            <span className="section-eyebrow">Новости деканата</span>
+            <h2>Последние объявления</h2>
+          </div>
+
+          <Link to="/notifications" className="btn-link">
+            Все объявления
+          </Link>
+        </div>
+
+        {error ? (
+          <div className="notification-error" role="alert">
+            <Icon name="alert" size={18} />
+            <span>{error}</span>
+            <button type="button" onClick={loadAnnouncements}>
+              Повторить
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="notification-list">
+            <div className="notification-skeleton" />
+            <div className="notification-skeleton" />
+          </div>
+        ) : announcements.length > 0 ? (
+          <div className="notification-list">
+            {announcements.slice(0, 3).map((item) => (
+              <AnnouncementCard key={item.id} item={item} />
+            ))}
+          </div>
+        ) : (
+          <div className="notification-empty">
+            <div className="notification-empty-icon">
+              <Icon name="bell" size={22} />
+            </div>
+            <h3>Пока нет объявлений</h3>
+            <p>Опубликуйте первое объявление для студентов</p>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 export default function Home() {
   const { user } = useAuth()
   const isStudent = user.role === 'student'
@@ -182,17 +258,22 @@ export default function Home() {
             <Changes data={data} error={error} />
           </>
         ) : (
-          <section className="hero hero-wide">
-            <Waves />
-            <p className="hero-kicker">Рабочее место</p>
-            <h2 className="hero-title">Заявки студентов</h2>
-            <p className="hero-text">
-              Здесь находятся входящие заявки и справки на обработку.
-            </p>
-            <Link to="/requests" className="btn btn-light">
-              Открыть заявки <Icon name="right" size={18} />
-            </Link>
-          </section>
+          <>
+            <section className="hero hero-wide">
+              <Waves />
+              <p className="hero-kicker">Рабочее место</p>
+              <h2 className="hero-title">Заявки студентов</h2>
+              <p className="hero-text">
+                Управляйте входящими обращениями, отслеживайте обработку
+                и публикуйте важные новости для студентов.
+              </p>
+              <Link to="/requests" className="btn btn-light">
+                Открыть заявки <Icon name="right" size={18} />
+              </Link>
+            </section>
+
+            <StaffAnnouncements />
+          </>
         )}
 
         <div className="tiles">
