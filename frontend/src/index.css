@@ -319,3 +319,39 @@ h1,h2,h3,p { margin: 0; }
   .auth-panel { padding:30px 21px; }
 }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+
+/* Счётчик непрочитанных уведомлений в навигации */
+.nav-unread-count {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 20px;
+  background: #d9b66f;
+  color: #263d40;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nav-link.active .nav-unread-count {
+  background: #f0d69d;
+}
+
+@media (max-width: 800px) {
+  .nav-unread-count {
+    position: absolute;
+    top: 2px;
+    right: calc(50% - 23px);
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 9px;
+  }
+
+  .nav-link {
+    position: relative;
+  }
+}
