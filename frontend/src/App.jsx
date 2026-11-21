@@ -1,7 +1,10 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
-import Login from './pages/Login.jsx'
+import AppShell from './components/AppShell.jsx'
+import ComingSoon from './pages/ComingSoon.jsx'
 import Home from './pages/Home.jsx'
+import Login from './pages/Login.jsx'
+import Profile from './pages/Profile.jsx'
 
 function Splash() {
   return (
@@ -11,12 +14,12 @@ function Splash() {
   )
 }
 
-// Пускает дальше только вошедших. Остальных отправляет на страницу входа.
+// Пускает дальше только вошедших и оборачивает страницы в каркас кабинета
 function Protected() {
   const { user, loading } = useAuth()
   if (loading) return <Splash />
   if (!user) return <Navigate to="/login" replace />
-  return <Outlet />
+  return <AppShell />
 }
 
 export default function App() {
@@ -30,6 +33,19 @@ export default function App() {
       />
       <Route element={<Protected />}>
         <Route path="/" element={<Home />} />
+        <Route
+          path="/schedule"
+          element={<ComingSoon title="Расписание" icon="schedule" text="Здесь появятся занятия на сегодня и неделю." />}
+        />
+        <Route
+          path="/grades"
+          element={<ComingSoon title="Оценки" icon="grades" text="Здесь появятся оценки, зачёты и итоги сессии." />}
+        />
+        <Route
+          path="/requests"
+          element={<ComingSoon title="Заявки и справки" icon="requests" text="Здесь можно будет заказать справку и следить за статусом." />}
+        />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
