@@ -36,3 +36,20 @@ def current_user(
     if user is None:
         raise ApiError(401, "unauthorized")
     return user
+
+def require_role(*roles: str):
+    """Пропускает только пользователей с нужной ролью, иначе 403."""
+
+    def checker(user: User = Depends(current_user)) -> User:
+        if user.role not in roles:
+            raise ApiError(403, "forbidden")
+        return user
+
+    return checker
+
+
+def student_user(user: User = Depends(current_user)) -> User:
+    """Вошедший студент с заполненным профилем."""
+    if user.role != "student" or user.student is None:
+        raise ApiError(403, "forbidden")
+    return user

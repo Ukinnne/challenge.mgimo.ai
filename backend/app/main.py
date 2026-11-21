@@ -8,11 +8,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .db import get_db
 from .deps import ApiError
-from .routers import auth
+from .routers import auth, schedule
 
 app = FastAPI(title="Деканат Next API", docs_url="/api/docs")
 app.include_router(auth.router)
-
+app.include_router(schedule.router)
 
 # --- Единый формат ошибок: {"error": "код"} ---
 @app.exception_handler(ApiError)

@@ -13,3 +13,11 @@ export const firstName = (name = '') => {
 }
 
 export const roleLabel = (role) => (role === 'student' ? 'Студент' : 'Сотрудник деканата')
+
+// «2026-11-23» → «23 ноября». Читаем как UTC, чтобы часовой пояс зрителя ничего не сдвигал
+export const formatDay = (iso) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })

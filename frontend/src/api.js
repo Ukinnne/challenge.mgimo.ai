@@ -12,7 +12,10 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
 
   const data = response.status === 204 ? null : await response.json().catch(() => null)
-  if (!response.ok) {
+    if (response.status === 401 && !path.startsWith('/auth/')) {
+    window.dispatchEvent(new Event('auth:expired'))
+  }
+    if (!response.ok) {
     throw Object.assign(new Error(data?.error || 'error'), { status: response.status, data })
   }
   return data

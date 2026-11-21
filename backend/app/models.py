@@ -11,6 +11,8 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    Time,
+    Date
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -72,6 +74,7 @@ class StaffProfile(Base):
 
     user: Mapped[User] = relationship(back_populates="staff")
 
+
 class AuthSession(Base):
     """Сессия входа. В базе лежит только хеш токена, сам токен есть только в куке."""
 
@@ -86,3 +89,24 @@ class AuthSession(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     user_agent: Mapped[str | None] = mapped_column(String(200))
+
+
+class Lesson(Base):
+    """Одно занятие группы в конкретный день."""
+
+    __tablename__ = "lessons"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    group_name: Mapped[str] = mapped_column(String(64), index=True)
+    lesson_date: Mapped[Date] = mapped_column(Date, index=True)
+    start_time: Mapped[Time] = mapped_column(Time)
+    end_time: Mapped[Time] = mapped_column(Time)
+    subject: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16))  # lecture / practice / lab / exam
+    teacher: Mapped[str] = mapped_column(Text)
+    room: Mapped[str] = mapped_column(Text)
+    # normal / moved (перенос) / cancelled (отмена) / replaced (замена)
+    status: Mapped[str] = mapped_column(
+        String(16), default="normal", server_default="normal"
+    )
+    note: Mapped[str | None] = mapped_column(Text)

@@ -5,6 +5,8 @@ const PATHS = {
   requests: 'M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM14 3v5h5M9 13h6M9 17h6',
   profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  left: 'M15 18l-6-6 6-6',
+  right: 'M9 18l6-6-6-6'
 }
 
 export default function Icon({ name, size = 24 }) {

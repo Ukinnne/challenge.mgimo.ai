@@ -5,6 +5,7 @@ import ComingSoon from './pages/ComingSoon.jsx'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Profile from './pages/Profile.jsx'
+import Schedule from './pages/Schedule.jsx'
 
 function Splash() {
   return (
@@ -27,6 +28,8 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/schedule" element={<Schedule />}
+      />
       <Route
         path="/login"
         element={loading ? <Splash /> : user ? <Navigate to="/" replace /> : <Login />}

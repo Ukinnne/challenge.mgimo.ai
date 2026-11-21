@@ -17,6 +17,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+    // Если сервер сообщил, что вход закончился, возвращаем пользователя на страницу входа
+  useEffect(() => {
+    const handler = () => setUser(null)
+    window.addEventListener('auth:expired', handler)
+    return () => window.removeEventListener('auth:expired', handler)
+  }, [])
+
   const signIn = useCallback(async (login, password) => {
     const data = await api('/auth/login', { method: 'POST', body: { login, password } })
     setUser(data.user)
