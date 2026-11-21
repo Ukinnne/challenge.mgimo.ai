@@ -1,6 +1,6 @@
 import Icon from './Icon.jsx'
 
-// Заглушка на время загрузки: серые полоски вместо пустого экрана
+// Серые заглушки на время загрузки
 export function Skeleton({ blocks = 3 }) {
   return (
     <div className="skeleton" role="status" aria-label="Загрузка">
@@ -14,6 +14,7 @@ export function Skeleton({ blocks = 3 }) {
 export function ErrorBox({ text = 'Не удалось загрузить данные.', onRetry }) {
   return (
     <div className="panel empty" role="alert">
+      <span className="empty-ico"><Icon name="alert" size={30} /></span>
       <h2>Что-то пошло не так</h2>
       <p>{text}</p>
       {onRetry && (
@@ -25,10 +26,10 @@ export function ErrorBox({ text = 'Не удалось загрузить дан
   )
 }
 
-export function EmptyState({ icon, title, text }) {
+export function EmptyState({ icon = 'check', title, text }) {
   return (
     <div className="panel empty">
-      {icon && <Icon name={icon} size={36} />}
+      <span className="empty-ico"><Icon name={icon} size={30} /></span>
       <h2>{title}</h2>
       {text && <p>{text}</p>}
     </div>

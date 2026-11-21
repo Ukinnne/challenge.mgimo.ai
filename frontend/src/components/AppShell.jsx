@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
 import { initials, roleLabel } from '../utils.js'
 import Icon from './Icon.jsx'
@@ -14,12 +15,19 @@ const ITEMS = [
 
 export default function AppShell() {
   const { user, signOut } = useAuth()
+  const { pathname } = useLocation()
   const name = user.profile?.full_name ?? user.login
-  // Пункты без списка ролей видят все, остальные только указанные роли
   const items = ITEMS.filter((item) => !item.roles || item.roles.includes(user.role))
+
+  // При переходе на другую страницу возвращаемся к её началу
+    useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
 
   return (
     <div className="app">
+      <a href="#main" className="skip-link">Перейти к содержимому</a>
+
       <aside className="sidebar">
         <div className="brand">
           <Logo size={36} />
@@ -29,8 +37,8 @@ export default function AppShell() {
         <nav className="nav" aria-label="Основное меню">
           {items.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
+              <span className="nav-ico"><Icon name={item.icon} size={22} /></span>
+              <span className="nav-label">{item.label}</span>
             </NavLink>
           ))}
         </nav>
@@ -57,11 +65,13 @@ export default function AppShell() {
         </button>
       </header>
 
-      <main className="main">
-        <Outlet />
-        <p className="note">
-          Концепт для конкурса. Не официальный сервис вуза, все данные вымышленные.
-        </p>
+      <main id="main" className="main" tabIndex={-1}>
+        <div className="content">
+          <Outlet />
+          <p className="note">
+            Концепт для конкурса. Не официальный сервис вуза, все данные вымышленные.
+          </p>
+        </div>
       </main>
     </div>
   )

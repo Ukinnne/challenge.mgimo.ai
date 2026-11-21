@@ -1,4 +1,6 @@
 import { useAuth } from '../auth.jsx'
+import PageHeader from '../components/PageHeader.jsx'
+import { EmptyState } from '../components/States.jsx'
 import { initials, roleLabel } from '../utils.js'
 
 export default function Profile() {
@@ -7,10 +9,14 @@ export default function Profile() {
 
   if (!profile) {
     return (
-      <div className="panel empty">
-        <h2>Профиль пока пуст</h2>
-        <p>Для этой учётной записи не заполнены данные. Обратитесь в деканат.</p>
-      </div>
+      <>
+        <PageHeader title="Профиль" />
+        <EmptyState
+          icon="profile"
+          title="Профиль пока пуст"
+          text="Для этой учётной записи не заполнены данные. Обратитесь в деканат."
+        />
+      </>
     )
   }
 
@@ -27,9 +33,7 @@ export default function Profile() {
 
   return (
     <>
-      <div className="page-head">
-        <h1 className="page-title">Профиль</h1>
-      </div>
+      <PageHeader title="Профиль" />
 
       <div className="profile-grid">
         <section className="panel profile-card">

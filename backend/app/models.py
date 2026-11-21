@@ -2,7 +2,9 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -10,9 +12,8 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
-    func,
     Time,
-    Date
+    func
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -110,3 +111,22 @@ class Lesson(Base):
         String(16), default="normal", server_default="normal"
     )
     note: Mapped[str | None] = mapped_column(Text)
+
+class CourseResult(Base):
+    """Дисциплина студента: баллы за текущий семестр или итог прошлой сессии."""
+
+    __tablename__ = "course_results"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    term: Mapped[str] = mapped_column(String(64))
+    term_order: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")  # больше = новее
+    is_current: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    subject: Mapped[str] = mapped_column(Text)
+    teacher: Mapped[str] = mapped_column(Text)
+    control: Mapped[str] = mapped_column(String(8))  # exam / credit
+    points: Mapped[int | None] = mapped_column(Integer)  # набранные баллы 0..100 (текущий семестр)
+    exam_date: Mapped[Date | None] = mapped_column(Date)
+    mark: Mapped[str | None] = mapped_column(String(8))  # итог: 5, 4, 3, 2, pass, fail

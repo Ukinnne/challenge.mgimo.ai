@@ -6,6 +6,7 @@ import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Profile from './pages/Profile.jsx'
 import Schedule from './pages/Schedule.jsx'
+import Grades from './pages/Grades.jsx'
 
 function Splash() {
   return (
@@ -28,22 +29,14 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/schedule" element={<Schedule />}
-      />
       <Route
         path="/login"
         element={loading ? <Splash /> : user ? <Navigate to="/" replace /> : <Login />}
       />
       <Route element={<Protected />}>
         <Route path="/" element={<Home />} />
-        <Route
-          path="/schedule"
-          element={<ComingSoon title="Расписание" icon="schedule" text="Здесь появятся занятия на сегодня и неделю." />}
-        />
-        <Route
-          path="/grades"
-          element={<ComingSoon title="Оценки" icon="grades" text="Здесь появятся оценки, зачёты и итоги сессии." />}
-        />
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/grades" element={<Grades />} />
         <Route
           path="/requests"
           element={<ComingSoon title="Заявки и справки" icon="requests" text="Здесь можно будет заказать справку и следить за статусом." />}
