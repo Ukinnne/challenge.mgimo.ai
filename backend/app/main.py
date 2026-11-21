@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .db import get_db
 from .deps import ApiError
-from .routers import auth, grades, requests, schedule
+from .routers import auth, grades, notifications, requests, schedule
 
 
 app = FastAPI(
@@ -21,6 +21,7 @@ app.include_router(auth.router)
 app.include_router(schedule.router)
 app.include_router(grades.router)
 app.include_router(requests.router)
+app.include_router(notifications.router)
 
 
 @app.exception_handler(ApiError)

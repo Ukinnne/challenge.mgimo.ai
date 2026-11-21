@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import ApiError, current_user, require_role, student_user
 from ..models import (
+    Notification,
     RequestStatusHistory,
     StudentProfile,
     StudentRequest,
@@ -31,6 +32,20 @@ RequestStatus = Literal[
     "completed",
     "rejected",
 ]
+
+
+STATUS_LABELS = {
+    "new": "Новая",
+    "in_progress": "В работе",
+    "completed": "Выполнена",
+    "rejected": "Отклонена",
+}
+
+REQUEST_TYPE_LABELS = {
+    "study_certificate": "Справка об обучении",
+    "academic_transcript": "Академическая справка",
+    "other": "Обращение",
+}
 
 
 class RequestCreate(BaseModel):
@@ -116,8 +131,6 @@ def list_requests(
         )
     )
 
-    # Студент получает только собственные заявки.
-    # Сотрудник получает общий список.
     if user.role == "student":
         query = query.where(StudentRequest.user_id == user.id)
 
@@ -157,6 +170,20 @@ def create_request(
             old_status=None,
             new_status="new",
             comment="Заявка создана",
+        )
+    )
+
+    db.add(
+        Notification(
+            user_id=user.id,
+            title="Заявка принята",
+            body=(
+                f"Заявка №{request.id} "
+                f"«{REQUEST_TYPE_LABELS[request.request_type]}» "
+                "успешно создана и ожидает обработки"
+            ),
+            notification_type="request_created",
+            related_request_id=request.id,
         )
     )
 
@@ -227,6 +254,24 @@ def update_request_status(
             old_status=old_status,
             new_status=body.status,
             comment=body.comment,
+        )
+    )
+
+    notification_body = (
+        f"Статус вашей заявки №{request.id} "
+        f"изменён на «{STATUS_LABELS[body.status]}»."
+    )
+
+    if body.comment:
+        notification_body += f" Комментарий сотрудника: {body.comment}"
+
+    db.add(
+        Notification(
+            user_id=request.user_id,
+            title="Изменился статус заявки",
+            body=notification_body,
+            notification_type="request_status",
+            related_request_id=request.id,
         )
     )
 

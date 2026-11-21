@@ -8,6 +8,7 @@ import Profile from './pages/Profile.jsx'
 import Schedule from './pages/Schedule.jsx'
 import Grades from './pages/Grades.jsx'
 import Requests from './pages/Requests.jsx'
+import Notifications from './pages/Notifications.jsx'
 
 function Splash() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/grades" element={<Grades />} />
         <Route path="/requests" element={<Requests />} />
+        <Route path="/notifications" element={<Notifications user={user} />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 
