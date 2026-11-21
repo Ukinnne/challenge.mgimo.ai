@@ -1,14 +1,37 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .db import get_db
+from .deps import ApiError
+from .routers import auth
 
 app = FastAPI(title="Деканат Next API", docs_url="/api/docs")
+app.include_router(auth.router)
 
 
+# --- Единый формат ошибок: {"error": "код"} ---
+@app.exception_handler(ApiError)
+async def api_error(_: Request, exc: ApiError):
+    return JSONResponse({"error": exc.code, **exc.extra}, status_code=exc.status)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError):
+    return JSONResponse({"error": "invalid_input"}, status_code=400)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(_: Request, exc: StarletteHTTPException):
+    code = "not_found" if exc.status_code == 404 else "error"
+    return JSONResponse({"error": code}, status_code=exc.status_code)
+
+
+# --- Проверки состояния (из шагов 3 и 6) ---
 @app.get("/api/health")
 def health():
     return {"ok": True, "service": "dekanat-next"}
