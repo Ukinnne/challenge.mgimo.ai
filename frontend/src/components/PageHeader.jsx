@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import Icon from './Icon.jsx'
 
-export default function PageHeader({ title, sub, back = true }) {
+export default function PageHeader({ title, sub, back = false }) {
   return (
     <header className="page-head">
       {back && (

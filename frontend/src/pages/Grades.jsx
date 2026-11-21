@@ -1,6 +1,5 @@
 import PageHeader from '../components/PageHeader.jsx'
 import { EmptyState, ErrorBox, Skeleton } from '../components/States.jsx'
-import Waves from '../components/Waves.jsx'
 import { useFetch } from '../hooks.js'
 import { daysLeftText, formatDay, num } from '../utils.js'
 
@@ -13,7 +12,6 @@ function Summary({ summary, passPoints }) {
 
   return (
     <section className="hero hero-wide">
-      <Waves />
       <p className="hero-kicker">Баллы за текущий семестр</p>
       <div className="gr-avg">
         <strong>{num(avg)}</strong>

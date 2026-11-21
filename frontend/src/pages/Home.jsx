@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
 import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
-import Waves from '../components/Waves.jsx'
 import { useFetch } from '../hooks.js'
 import { firstName, formatDay, greeting, lessonsWord } from '../utils.js'
 
@@ -31,7 +30,6 @@ function Hero({ data, error, reload }) {
   if (error) {
     return (
       <section className="hero">
-        <Waves />
         <h2 className="hero-title">Не удалось загрузить расписание</h2>
         <button className="btn btn-light" onClick={reload}>Повторить</button>
       </section>
@@ -46,7 +44,6 @@ function Hero({ data, error, reload }) {
 
   return (
     <section className="hero">
-      <Waves />
       <p className="hero-kicker">{data.weekday}, {formatDay(data.today)}</p>
       <h2 className="hero-title">
         {count ? `Сегодня ${count} ${lessonsWord(count)}` : 'Сегодня занятий нет'}
@@ -133,7 +130,6 @@ export default function Home() {
           </>
         ) : (
           <section className="hero hero-wide">
-            <Waves />
             <p className="hero-kicker">Рабочее место</p>
             <h2 className="hero-title">Заявки студентов</h2>
             <p className="hero-text">Здесь появятся входящие заявки и справки на обработку.</p>
