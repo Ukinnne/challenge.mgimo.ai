@@ -168,5 +168,6 @@ def logout(
         db.commit()
 
     response.delete_cookie(COOKIE, path="/")
+    response.status_code = 204
 
     return response
