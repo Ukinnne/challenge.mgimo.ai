@@ -1,3 +1,4 @@
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -8,40 +9,66 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .db import get_db
 from .deps import ApiError
-from .routers import auth, grades, schedule
+from .routers import auth, grades, requests, schedule
 
-app = FastAPI(title="Деканат Next API", docs_url="/api/docs")
+
+app = FastAPI(
+    title="Деканат Next API",
+    docs_url="/api/docs",
+)
+
 app.include_router(auth.router)
 app.include_router(schedule.router)
 app.include_router(grades.router)
+app.include_router(requests.router)
 
-# --- Единый формат ошибок: {"error": "код"} ---
+
 @app.exception_handler(ApiError)
 async def api_error(_: Request, exc: ApiError):
-    return JSONResponse({"error": exc.code, **exc.extra}, status_code=exc.status)
+    return JSONResponse(
+        {"error": exc.code, **exc.extra},
+        status_code=exc.status,
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError):
-    return JSONResponse({"error": "invalid_input"}, status_code=400)
+    return JSONResponse(
+        {"error": "invalid_input"},
+        status_code=400,
+    )
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(_: Request, exc: StarletteHTTPException):
     code = "not_found" if exc.status_code == 404 else "error"
-    return JSONResponse({"error": code}, status_code=exc.status_code)
+    return JSONResponse(
+        {"error": code},
+        status_code=exc.status_code,
+    )
 
 
-# --- Проверки состояния (из шагов 3 и 6) ---
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "dekanat-next"}
+    return {
+        "ok": True,
+        "service": "dekanat-next",
+    }
 
 
 @app.get("/api/health/db")
 def health_db(db: Session = Depends(get_db)):
     try:
-        version = db.execute(text("select version()")).scalar_one()
+        version = db.execute(
+            text("select version()")
+        ).scalar_one()
     except SQLAlchemyError:
-        return JSONResponse({"ok": False}, status_code=503)
-    return {"ok": True, "version": version.split(",")[0]}
+        return JSONResponse(
+            {"ok": False},
+            status_code=503,
+        )
+
+    return {
+        "ok": True,
+        "version": version.split(",")[0],
+    }

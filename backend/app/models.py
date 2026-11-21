@@ -1,3 +1,4 @@
+
 from datetime import datetime
 
 from sqlalchemy import (
@@ -13,7 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     Time,
-    func
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,21 +31,26 @@ class User(Base):
     login: Mapped[str] = mapped_column(String(64))
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(16))
-    failed_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    failed_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
     student: Mapped["StudentProfile | None"] = relationship(
-        back_populates="user", uselist=False, cascade="all, delete-orphan"
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     staff: Mapped["StaffProfile | None"] = relationship(
-        back_populates="user", uselist=False, cascade="all, delete-orphan"
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
 
-# Логин уникален без учёта регистра: «Student1» и «student1» считаются одним логином
 Index("users_login_uq", func.lower(User.__table__.c.login), unique=True)
 
 
@@ -52,7 +58,9 @@ class StudentProfile(Base):
     __tablename__ = "student_profiles"
 
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
     )
     full_name: Mapped[str] = mapped_column(Text)
     faculty: Mapped[str] = mapped_column(Text)
@@ -68,7 +76,9 @@ class StaffProfile(Base):
     __tablename__ = "staff_profiles"
 
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
     )
     full_name: Mapped[str] = mapped_column(Text)
     position: Mapped[str] = mapped_column(Text)
@@ -77,16 +87,19 @@ class StaffProfile(Base):
 
 
 class AuthSession(Base):
-    """Сессия входа. В базе лежит только хеш токена, сам токен есть только в куке."""
+    """Сессия входа. В базе хранится только хеш токена."""
 
     __tablename__ = "sessions"
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     user_agent: Mapped[str | None] = mapped_column(String(200))
@@ -103,30 +116,115 @@ class Lesson(Base):
     start_time: Mapped[Time] = mapped_column(Time)
     end_time: Mapped[Time] = mapped_column(Time)
     subject: Mapped[str] = mapped_column(Text)
-    kind: Mapped[str] = mapped_column(String(16))  # lecture / practice / lab / exam
+    kind: Mapped[str] = mapped_column(String(16))
     teacher: Mapped[str] = mapped_column(Text)
     room: Mapped[str] = mapped_column(Text)
-    # normal / moved (перенос) / cancelled (отмена) / replaced (замена)
     status: Mapped[str] = mapped_column(
-        String(16), default="normal", server_default="normal"
+        String(16),
+        default="normal",
+        server_default="normal",
     )
     note: Mapped[str | None] = mapped_column(Text)
 
+
 class CourseResult(Base):
-    """Дисциплина студента: баллы за текущий семестр или итог прошлой сессии."""
+    """Дисциплина студента."""
 
     __tablename__ = "course_results"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
     )
     term: Mapped[str] = mapped_column(String(64))
-    term_order: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")  # больше = новее
-    is_current: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    term_order: Mapped[int] = mapped_column(
+        SmallInteger,
+        default=0,
+        server_default="0",
+    )
+    is_current: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+    )
     subject: Mapped[str] = mapped_column(Text)
     teacher: Mapped[str] = mapped_column(Text)
-    control: Mapped[str] = mapped_column(String(8))  # exam / credit
-    points: Mapped[int | None] = mapped_column(Integer)  # набранные баллы 0..100 (текущий семестр)
+    control: Mapped[str] = mapped_column(String(8))
+    points: Mapped[int | None] = mapped_column(Integer)
     exam_date: Mapped[Date | None] = mapped_column(Date)
-    mark: Mapped[str | None] = mapped_column(String(8))  # итог: 5, 4, 3, 2, pass, fail
+    mark: Mapped[str | None] = mapped_column(String(8))
+
+
+class StudentRequest(Base):
+    """Заявка студента в деканат."""
+
+    __tablename__ = "student_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('new', 'in_progress', 'completed', 'rejected')",
+            name="student_requests_status_chk",
+        ),
+        CheckConstraint(
+            "request_type IN ('study_certificate', 'academic_transcript', 'other')",
+            name="student_requests_type_chk",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    request_type: Mapped[str] = mapped_column(String(32))
+    comment: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="new",
+        server_default="new",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    history: Mapped[list["RequestStatusHistory"]] = relationship(
+        back_populates="request",
+        cascade="all, delete-orphan",
+        order_by="RequestStatusHistory.created_at",
+    )
+
+
+class RequestStatusHistory(Base):
+    """История изменения статусов заявки."""
+
+    __tablename__ = "request_status_history"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("student_requests.id", ondelete="CASCADE"),
+        index=True,
+    )
+    changed_by_user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id"),
+        index=True,
+    )
+    actor_role: Mapped[str] = mapped_column(String(16))
+    old_status: Mapped[str | None] = mapped_column(String(20))
+    new_status: Mapped[str] = mapped_column(String(20))
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    request: Mapped[StudentRequest] = relationship(back_populates="history")
