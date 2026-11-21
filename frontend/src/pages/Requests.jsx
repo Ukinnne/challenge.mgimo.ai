@@ -50,6 +50,47 @@ function Status({ value }) {
   )
 }
 
+function StudentDetails({ student }) {
+  return (
+    <div className="request-student">
+      <div className="request-section-heading">
+        <div>
+          <span className="request-eyebrow">Заявитель</span>
+          <h4>{student?.full_name || 'Данные студента не найдены'}</h4>
+        </div>
+      </div>
+
+      {student && (
+        <div className="request-student-details">
+          {student.faculty && (
+            <div>
+              <span>Факультет</span>
+              <strong>{student.faculty}</strong>
+            </div>
+          )}
+
+          {student.program && (
+            <div>
+              <span>Образовательная программа</span>
+              <strong>{student.program}</strong>
+            </div>
+          )}
+
+          <div>
+            <span>Курс</span>
+            <strong>{student.course ?? 'Не указан'}</strong>
+          </div>
+
+          <div>
+            <span>Группа</span>
+            <strong>{student.group_name || 'Не указана'}</strong>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RequestHistory({ history }) {
   if (!history?.length) return null
 
@@ -129,6 +170,8 @@ function RequestCard({ item, isStaff, onUpdate }) {
         <Status value={item.status} />
       </div>
 
+      {isStaff && <StudentDetails student={item.student} />}
+
       <div className="request-meta">
         <span>Создана: {formatDate(item.created_at)}</span>
         {item.updated_at !== item.created_at && (
@@ -176,7 +219,10 @@ function RequestCard({ item, isStaff, onUpdate }) {
 
           {error && <p className="request-error">{error}</p>}
 
-          <button className="btn btn-primary request-submit" disabled={saving || !nextStatus}>
+          <button
+            className="btn btn-primary request-submit"
+            disabled={saving || !nextStatus}
+          >
             {saving ? 'Сохранение...' : 'Обновить статус'}
           </button>
         </form>

@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import ApiError, current_user, require_role, student_user
-from ..models import RequestStatusHistory, StudentRequest, User
+from ..models import (
+    RequestStatusHistory,
+    StudentProfile,
+    StudentRequest,
+    User,
+)
 
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
@@ -56,7 +61,10 @@ ALLOWED_TRANSITIONS = {
 }
 
 
-def serialize_request(request: StudentRequest) -> dict:
+def serialize_request(
+    request: StudentRequest,
+    student: StudentProfile | None = None,
+) -> dict:
     return {
         "id": request.id,
         "request_type": request.request_type,
@@ -64,6 +72,17 @@ def serialize_request(request: StudentRequest) -> dict:
         "status": request.status,
         "created_at": request.created_at.isoformat(),
         "updated_at": request.updated_at.isoformat(),
+        "student": (
+            {
+                "full_name": student.full_name,
+                "faculty": student.faculty,
+                "program": student.program,
+                "course": student.course,
+                "group_name": student.group_name,
+            }
+            if student
+            else None
+        ),
         "history": [
             {
                 "old_status": event.old_status,
@@ -77,24 +96,40 @@ def serialize_request(request: StudentRequest) -> dict:
     }
 
 
+def get_student_profile(
+    db: Session,
+    user_id: int,
+) -> StudentProfile | None:
+    return db.get(StudentProfile, user_id)
+
+
 @router.get("")
 def list_requests(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    query = select(StudentRequest)
+    query = (
+        select(StudentRequest, StudentProfile)
+        .outerjoin(
+            StudentProfile,
+            StudentRequest.user_id == StudentProfile.user_id,
+        )
+    )
 
     # Студент получает только собственные заявки.
     # Сотрудник получает общий список.
     if user.role == "student":
         query = query.where(StudentRequest.user_id == user.id)
 
-    requests = db.scalars(
-        query.order_by(StudentRequest.created_at.desc())
-    ).all()
+    query = query.order_by(StudentRequest.created_at.desc())
+
+    rows = db.execute(query).all()
 
     return {
-        "requests": [serialize_request(item) for item in requests]
+        "requests": [
+            serialize_request(request, student)
+            for request, student in rows
+        ]
     }
 
 
@@ -128,7 +163,9 @@ def create_request(
     db.commit()
     db.refresh(request)
 
-    return serialize_request(request)
+    student = get_student_profile(db, user.id)
+
+    return serialize_request(request, student)
 
 
 @router.get("/{request_id}")
@@ -149,7 +186,9 @@ def get_request(
     if request is None:
         raise ApiError(404, "not_found")
 
-    return serialize_request(request)
+    student = get_student_profile(db, request.user_id)
+
+    return serialize_request(request, student)
 
 
 @router.patch("/{request_id}/status")
@@ -169,7 +208,8 @@ def update_request_status(
         raise ApiError(404, "not_found")
 
     if body.status == request.status:
-        return serialize_request(request)
+        student = get_student_profile(db, request.user_id)
+        return serialize_request(request, student)
 
     allowed = ALLOWED_TRANSITIONS.get(request.status, set())
 
@@ -193,4 +233,6 @@ def update_request_status(
     db.commit()
     db.refresh(request)
 
-    return serialize_request(request)
+    student = get_student_profile(db, request.user_id)
+
+    return serialize_request(request, student)
