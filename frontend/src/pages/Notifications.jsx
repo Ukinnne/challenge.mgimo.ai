@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
@@ -34,11 +35,37 @@ function formatEventDate(value) {
   }).format(date)
 }
 
-export function AnnouncementCard({ item }) {
+function getApiError(err, fallback) {
+  const detail = err?.data?.detail
+
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item.msg).filter(Boolean).join('. ')
+  }
+
+  return fallback
+}
+
+export function AnnouncementCard({
+  item,
+  isStaff = false,
+  onRead,
+  onDelete,
+  reading = false,
+  deleting = false,
+}) {
   const isDeadline = item.category === 'deadline'
+  const isRead = Boolean(item.is_read)
 
   return (
-    <article className={`notification-card announcement-card ${isDeadline ? 'deadline-card' : ''}`}>
+    <article
+      className={[
+        'notification-card',
+        'announcement-card',
+        isDeadline ? 'deadline-card' : '',
+        !isStaff && !isRead ? 'announcement-unread' : '',
+      ].filter(Boolean).join(' ')}
+    >
       <div className="notification-icon">
         <Icon name={isDeadline ? 'clock' : 'bell'} size={21} />
       </div>
@@ -49,10 +76,16 @@ export function AnnouncementCard({ item }) {
             {isDeadline ? 'Дедлайн' : 'Объявление'}
           </span>
 
-          {item.target_group && (
+          {item.target_group ? (
             <span className="notification-audience">
-              {item.target_group}
+              Группа: {item.target_group}
             </span>
+          ) : (
+            <span className="notification-audience">Все студенты</span>
+          )}
+
+          {!isStaff && !isRead && (
+            <span className="unread-dot" aria-label="Не прочитано" />
           )}
         </div>
 
@@ -66,9 +99,35 @@ export function AnnouncementCard({ item }) {
           </div>
         )}
 
-        <time className="notification-date">
-          {formatDate(item.created_at)}
-        </time>
+        <div className="notification-footer">
+          <time className="notification-date">
+            {formatDate(item.created_at)}
+          </time>
+
+          <div className="notification-actions">
+            {!isStaff && !isRead && (
+              <button
+                className="btn-link notification-read"
+                type="button"
+                disabled={reading}
+                onClick={() => onRead?.(item.id)}
+              >
+                {reading ? 'Сохраняем...' : 'Прочитано'}
+              </button>
+            )}
+
+            {isStaff && (
+              <button
+                className="btn-link notification-delete"
+                type="button"
+                disabled={deleting}
+                onClick={() => onDelete?.(item)}
+              >
+                {deleting ? 'Удаляем...' : 'Удалить'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </article>
   )
@@ -124,8 +183,38 @@ export function AnnouncementForm({ onCreated }) {
   const [category, setCategory] = useState('announcement')
   const [targetGroup, setTargetGroup] = useState('')
   const [eventAt, setEventAt] = useState('')
+  const [groups, setGroups] = useState([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
+  const [groupsError, setGroupsError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadGroups() {
+      try {
+        const data = await api('/notifications/groups')
+
+        if (active) {
+          setGroups(data.groups ?? [])
+          setGroupsError('')
+        }
+      } catch {
+        if (active) {
+          setGroupsError('Не удалось загрузить список групп')
+        }
+      } finally {
+        if (active) setGroupsLoading(false)
+      }
+    }
+
+    loadGroups()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -150,7 +239,7 @@ export function AnnouncementForm({ onCreated }) {
           title: title.trim(),
           body: body.trim(),
           category,
-          target_group: targetGroup.trim() || null,
+          target_group: targetGroup || null,
           event_at: category === 'deadline' ? eventAt : null,
         },
       })
@@ -161,15 +250,14 @@ export function AnnouncementForm({ onCreated }) {
       setTargetGroup('')
       setEventAt('')
 
-      await onCreated()
+      await onCreated?.()
     } catch (err) {
-      if (err.status === 403) {
-        setError('У тебя нет прав для публикации объявлений')
-      } else if (err.status === 422 || err.status === 400) {
-        setError('Проверь заголовок, текст и дату публикации')
-      } else {
-        setError('Не удалось опубликовать объявление. Попробуй ещё раз')
-      }
+      setError(
+        getApiError(
+          err,
+          'Не удалось опубликовать объявление. Попробуй ещё раз',
+        ),
+      )
     } finally {
       setSubmitting(false)
     }
@@ -205,7 +293,7 @@ export function AnnouncementForm({ onCreated }) {
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Например, Изменение расписания"
+            placeholder="Например, Важно"
             maxLength={160}
             required
           />
@@ -222,18 +310,30 @@ export function AnnouncementForm({ onCreated }) {
             maxLength={5000}
             required
           />
+          <small>{body.length}/5000 символов</small>
         </label>
 
         <label className="notification-field">
-          <span>Группа получателей</span>
-          <input
+          <span>Кому показывать</span>
+          <select
             value={targetGroup}
             onChange={(event) => setTargetGroup(event.target.value)}
-            placeholder="Оставь пустым для всех"
-            maxLength={64}
-          />
+            disabled={groupsLoading || Boolean(groupsError)}
+          >
+            <option value="">Всем студентам</option>
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+
           <small>
-            Если поле пустое, объявление увидят все подходящие пользователи
+            {groupsLoading
+              ? 'Загружаем группы...'
+              : groupsError
+                ? groupsError
+                : 'Можно выбрать одну группу или отправить объявление всем'}
           </small>
         </label>
 
@@ -270,9 +370,10 @@ export default function Notifications({ user }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [readingId, setReadingId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
   const [markingAll, setMarkingAll] = useState(false)
 
-  const isStaff = user?.role !== 'student'
+  const isStaff = user?.role === 'staff'
 
   const loadNotifications = useCallback(async () => {
     setError('')
@@ -294,7 +395,29 @@ export default function Notifications({ user }) {
     loadNotifications()
   }, [loadNotifications])
 
-  async function markAsRead(id) {
+  async function markAnnouncementRead(id) {
+    setReadingId(id)
+
+    try {
+      await api(`/notifications/announcements/${id}/read`, {
+        method: 'PATCH',
+      })
+
+      setAnnouncements((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, is_read: true } : item,
+        ),
+      )
+
+      setUnreadCount((count) => Math.max(0, count - 1))
+    } catch (err) {
+      setError(getApiError(err, 'Не удалось отметить объявление прочитанным'))
+    } finally {
+      setReadingId(null)
+    }
+  }
+
+  async function markNotificationRead(id) {
     setReadingId(id)
 
     try {
@@ -304,8 +427,8 @@ export default function Notifications({ user }) {
         current.map((item) =>
           item.id === id
             ? { ...item, read_at: new Date().toISOString(), is_read: true }
-            : item
-        )
+            : item,
+        ),
       )
 
       setUnreadCount((count) => Math.max(0, count - 1))
@@ -316,23 +439,55 @@ export default function Notifications({ user }) {
     }
   }
 
+  async function deleteAnnouncement(item) {
+    const confirmed = window.confirm(
+      `Удалить объявление «${item.title}»? Оно исчезнет у всех получателей.`,
+    )
+
+    if (!confirmed) return
+
+    setDeletingId(item.id)
+    setError('')
+
+    try {
+      await api(`/notifications/announcements/${item.id}`, {
+        method: 'DELETE',
+      })
+
+      setAnnouncements((current) =>
+        current.filter((announcement) => announcement.id !== item.id),
+      )
+
+      await loadNotifications()
+    } catch (err) {
+      setError(getApiError(err, 'Не удалось удалить объявление'))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   async function markAllAsRead() {
     setMarkingAll(true)
+    setError('')
 
     try {
       await api('/notifications/read-all', { method: 'PATCH' })
+
+      setAnnouncements((current) =>
+        current.map((item) => ({ ...item, is_read: true })),
+      )
 
       setNotifications((current) =>
         current.map((item) => ({
           ...item,
           read_at: item.read_at || new Date().toISOString(),
           is_read: true,
-        }))
+        })),
       )
 
       setUnreadCount(0)
-    } catch {
-      setError('Не удалось отметить уведомления прочитанными')
+    } catch (err) {
+      setError(getApiError(err, 'Не удалось отметить уведомления прочитанными'))
     } finally {
       setMarkingAll(false)
     }
@@ -342,10 +497,16 @@ export default function Notifications({ user }) {
     <div className="notifications-page">
       <header className="page-head notifications-head">
         <div>
-          <span className="notifications-kicker">Личный кабинет</span>
-          <h1 className="page-title">Уведомления</h1>
+          <span className="notifications-kicker">
+            {isStaff ? 'Рабочее пространство' : 'Личный кабинет'}
+          </span>
+          <h1 className="page-title">
+            {isStaff ? 'Объявления' : 'Уведомления'}
+          </h1>
           <p className="page-sub">
-            Важные новости, объявления и изменения по твоим заявкам
+            {isStaff
+              ? 'Публикуйте новости и управляйте объявлениями для студентов'
+              : 'Новости деканата, дедлайны и изменения по твоим заявкам'}
           </p>
         </div>
 
@@ -374,8 +535,10 @@ export default function Notifications({ user }) {
       <section className="notification-section">
         <div className="notification-section-heading">
           <div>
-            <span className="section-eyebrow">Новости деканата</span>
-            <h2>Объявления</h2>
+            <span className="section-eyebrow">
+              {isStaff ? 'Опубликовано' : 'Новости деканата'}
+            </span>
+            <h2>{isStaff ? 'Управление объявлениями' : 'Объявления'}</h2>
           </div>
 
           <span className="section-count">{announcements.length}</span>
@@ -389,7 +552,15 @@ export default function Notifications({ user }) {
         ) : announcements.length > 0 ? (
           <div className="notification-list">
             {announcements.map((item) => (
-              <AnnouncementCard key={item.id} item={item} />
+              <AnnouncementCard
+                key={item.id}
+                item={item}
+                isStaff={isStaff}
+                onRead={markAnnouncementRead}
+                onDelete={deleteAnnouncement}
+                reading={readingId === item.id}
+                deleting={deletingId === item.id}
+              />
             ))}
           </div>
         ) : (
@@ -398,58 +569,77 @@ export default function Notifications({ user }) {
               <Icon name="bell" size={22} />
             </div>
             <h3>Пока нет объявлений</h3>
-            <p>Когда появятся новости деканата, они будут здесь</p>
-          </div>
-        )}
-      </section>
-
-      <section className="notification-section personal-section">
-        <div className="notification-section-heading">
-          <div>
-            <span className="section-eyebrow">Только для тебя</span>
-            <h2>Личные уведомления</h2>
-          </div>
-
-          {unreadCount > 0 && (
-            <button
-              className="btn-link mark-all-button"
-              type="button"
-              onClick={markAllAsRead}
-              disabled={markingAll}
-            >
-              {markingAll ? 'Сохраняем...' : 'Прочитать все'}
-            </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="notification-list">
-            <div className="notification-skeleton" />
-            <div className="notification-skeleton" />
-          </div>
-        ) : notifications.length > 0 ? (
-          <div className="notification-list">
-            {notifications.map((item) => (
-              <PersonalNotificationCard
-                key={item.id}
-                item={item}
-                onRead={markAsRead}
-                loading={readingId === item.id}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="notification-empty">
-            <div className="notification-empty-icon">
-              <Icon name="check" size={22} />
-            </div>
-            <h3>Всё спокойно</h3>
             <p>
-              Личные уведомления о заявках и изменениях появятся здесь
+              {isStaff
+                ? 'Опубликуйте первое объявление для студентов'
+                : 'Когда появятся новости деканата, они будут здесь'}
             </p>
           </div>
         )}
       </section>
+
+      {!isStaff && (
+        <section className="notification-section personal-section">
+          <div className="notification-section-heading">
+            <div>
+              <span className="section-eyebrow">Только для тебя</span>
+              <h2>Личные уведомления</h2>
+            </div>
+
+            {unreadCount > 0 && (
+              <button
+                className="btn-link mark-all-button"
+                type="button"
+                onClick={markAllAsRead}
+                disabled={markingAll}
+              >
+                {markingAll ? 'Сохраняем...' : 'Прочитать все'}
+              </button>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="notification-list">
+              <div className="notification-skeleton" />
+              <div className="notification-skeleton" />
+            </div>
+          ) : notifications.length > 0 ? (
+            <div className="notification-list">
+              {notifications.map((item) => (
+                <PersonalNotificationCard
+                  key={item.id}
+                  item={item}
+                  onRead={markNotificationRead}
+                  loading={readingId === item.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="notification-empty">
+              <div className="notification-empty-icon">
+                <Icon name="check" size={22} />
+              </div>
+              <h3>Всё спокойно</h3>
+              <p>
+                Личные уведомления о заявках и изменениях появятся здесь
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {!isStaff && unreadCount > 0 && (
+        <div className="notification-bottom-action">
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={markAllAsRead}
+            disabled={markingAll}
+          >
+            {markingAll ? 'Сохраняем...' : 'Отметить всё прочитанным'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

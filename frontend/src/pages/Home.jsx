@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
-import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
 import Waves from '../components/Waves.jsx'
 import { useFetch } from '../hooks.js'
-import { firstName, formatDay, greeting, lessonsWord } from '../utils.js'
 import {
   AnnouncementCard,
-  AnnouncementForm,
 } from './Notifications.jsx'
+import { firstName, formatDay, greeting, lessonsWord } from '../utils.js'
 
-const STATUS = { moved: 'Перенос', cancelled: 'Отмена', replaced: 'Замена' }
+const STATUS = {
+  moved: 'Перенос',
+  cancelled: 'Отмена',
+  replaced: 'Замена',
+}
 
 const TILES = [
   {
@@ -34,6 +36,12 @@ const TILES = [
     icon: 'requests',
     title: 'Заявки и справки',
     text: 'Заказ справок и статус заявки',
+  },
+  {
+    to: '/notifications',
+    icon: 'bell',
+    title: 'Объявления и уведомления',
+    text: 'Новости деканата и важные напоминания',
   },
 ]
 
@@ -65,7 +73,11 @@ function Hero({ data, error, reload }) {
 
   if (!data) {
     return (
-      <section className="hero hero-loading" role="status" aria-label="Загрузка" />
+      <section
+        className="hero hero-loading"
+        role="status"
+        aria-label="Загрузка"
+      />
     )
   }
 
@@ -153,74 +165,58 @@ function Changes({ data, error }) {
   )
 }
 
-function StaffAnnouncements() {
-  const [announcements, setAnnouncements] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const loadAnnouncements = useCallback(async () => {
-    setError('')
-
-    try {
-      const data = await api('/notifications')
-      setAnnouncements(data.announcements ?? [])
-    } catch {
-      setError('Не удалось загрузить объявления')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadAnnouncements()
-  }, [loadAnnouncements])
+function StudentAnnouncements({ data, error, reload }) {
+  const announcements = data?.announcements ?? []
+  const unreadCount = data?.unread_count ?? 0
 
   return (
-    <div className="notifications-page">
-      <AnnouncementForm onCreated={loadAnnouncements} />
-
-      <section className="notification-section">
-        <div className="notification-section-heading">
-          <div>
-            <span className="section-eyebrow">Новости деканата</span>
-            <h2>Последние объявления</h2>
-          </div>
-
-          <Link to="/notifications" className="btn-link">
-            Все объявления
-          </Link>
+    <section className="panel home-announcements">
+      <div className="home-announcements-head">
+        <div>
+          <span className="section-eyebrow">Будь в курсе</span>
+          <h2 className="panel-title">Новости деканата</h2>
         </div>
 
-        {error ? (
-          <div className="notification-error" role="alert">
-            <Icon name="alert" size={18} />
-            <span>{error}</span>
-            <button type="button" onClick={loadAnnouncements}>
-              Повторить
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="notification-list">
-            <div className="notification-skeleton" />
-            <div className="notification-skeleton" />
-          </div>
-        ) : announcements.length > 0 ? (
-          <div className="notification-list">
-            {announcements.slice(0, 3).map((item) => (
-              <AnnouncementCard key={item.id} item={item} />
-            ))}
-          </div>
-        ) : (
-          <div className="notification-empty">
-            <div className="notification-empty-icon">
-              <Icon name="bell" size={22} />
-            </div>
-            <h3>Пока нет объявлений</h3>
-            <p>Опубликуйте первое объявление для студентов</p>
-          </div>
+        {unreadCount > 0 && (
+          <span className="home-unread-bubble">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
         )}
-      </section>
-    </div>
+      </div>
+
+      {error ? (
+        <div className="notification-error" role="alert">
+          <Icon name="alert" size={18} />
+          <span>Не удалось загрузить объявления</span>
+          <button type="button" onClick={reload}>
+            Повторить
+          </button>
+        </div>
+      ) : !data ? (
+        <div className="notification-list">
+          <div className="notification-skeleton" />
+          <div className="notification-skeleton" />
+        </div>
+      ) : announcements.length > 0 ? (
+        <div className="notification-list">
+          {announcements.slice(0, 2).map((item) => (
+            <AnnouncementCard key={item.id} item={item} />
+          ))}
+        </div>
+      ) : (
+        <div className="notification-empty">
+          <div className="notification-empty-icon">
+            <Icon name="check" size={22} />
+          </div>
+          <h3>Новых объявлений пока нет</h3>
+          <p>Здесь появятся важные новости и напоминания от деканата</p>
+        </div>
+      )}
+
+      <Link to="/notifications" className="btn-link home-announcements-link">
+        Все уведомления <Icon name="right" size={16} />
+      </Link>
+    </section>
   )
 }
 
@@ -232,7 +228,12 @@ export default function Home() {
     isStudent ? '/schedule/upcoming' : null,
   )
 
+  const notificationsFetch = useFetch(
+    isStudent ? '/notifications' : null,
+  )
+
   const name = firstName(user.profile?.full_name ?? user.login)
+
   const tiles = TILES.filter(
     (tile) => !tile.roles || tile.roles.includes(user.role),
   )
@@ -256,24 +257,22 @@ export default function Home() {
           <>
             <Hero data={data} error={error} reload={reload} />
             <Changes data={data} error={error} />
+            <StudentAnnouncements
+              data={notificationsFetch.data}
+              error={notificationsFetch.error}
+              reload={notificationsFetch.reload}
+            />
           </>
         ) : (
-          <>
-            <section className="hero hero-wide">
-              <Waves />
-              <p className="hero-kicker">Рабочее место</p>
-              <h2 className="hero-title">Заявки студентов</h2>
-              <p className="hero-text">
-                Управляйте входящими обращениями, отслеживайте обработку
-                и публикуйте важные новости для студентов.
-              </p>
-              <Link to="/requests" className="btn btn-light">
-                Открыть заявки <Icon name="right" size={18} />
-              </Link>
-            </section>
-
-            <StaffAnnouncements />
-          </>
+          <section className="hero hero-wide">
+            <Waves />
+            <p className="hero-kicker">Рабочее пространство</p>
+            <h2 className="hero-title">Управление деканатом</h2>
+            <p className="hero-text">
+              Обрабатывайте обращения студентов, публикуйте объявления
+              и следите за важными событиями в одном месте.
+            </p>
+          </section>
         )}
 
         <div className="tiles">

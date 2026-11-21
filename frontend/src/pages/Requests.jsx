@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth.jsx'
 import { api } from '../api.js'
@@ -41,6 +42,19 @@ function formatDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+}
+
+function pluralizeRequests(count) {
+  if (count % 10 === 1 && count % 100 !== 11) return 'заявка'
+  if (
+    count % 10 >= 2 &&
+    count % 10 <= 4 &&
+    (count % 100 < 12 || count % 100 > 14)
+  ) {
+    return 'заявки'
+  }
+
+  return 'заявок'
 }
 
 function Status({ value }) {
@@ -121,7 +135,7 @@ function RequestHistory({ history }) {
   )
 }
 
-function RequestCard({ item, isStaff, onUpdate }) {
+function RequestCard({ item, isStaff, onUpdate, isArchived }) {
   const [nextStatus, setNextStatus] = useState('')
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
@@ -231,7 +245,9 @@ function RequestCard({ item, isStaff, onUpdate }) {
 
       {isStaff && availableStatuses.length === 0 && (
         <p className="request-final-note">
-          Заявка завершена. Изменение статуса больше недоступно.
+          {isArchived
+            ? 'Заявка находится в архиве. История обработки доступна ниже.'
+            : 'Заявка завершена. Изменение статуса больше недоступно.'}
         </p>
       )}
 
@@ -376,12 +392,6 @@ export default function Requests() {
       : activeRequests
     : requests
 
-  const countLabel = visibleRequests.length === 1
-    ? 'заявка'
-    : visibleRequests.length >= 2 && visibleRequests.length <= 4
-      ? 'заявки'
-      : 'заявок'
-
   return (
     <>
       <PageHeader
@@ -397,11 +407,11 @@ export default function Requests() {
 
       <div className="request-list-heading">
         <div>
-          <h2>{isStaff ? 'Рабочий список' : 'Мои заявки'}</h2>
+          <h2>{isStaff ? 'Обращения студентов' : 'Мои заявки'}</h2>
           <p>
             {loading
               ? 'Загружаем список...'
-              : `${visibleRequests.length} ${countLabel}`}
+              : `${visibleRequests.length} ${pluralizeRequests(visibleRequests.length)}`}
           </p>
         </div>
 
@@ -411,74 +421,79 @@ export default function Requests() {
       </div>
 
       {isStaff && (
-        <div
-          className="request-list-heading"
-          role="tablist"
-          aria-label="Разделы заявок"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={requestView === 'active'}
-            className={`btn ${requestView === 'active' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setRequestView('active')}
-          >
-            Активные ({activeRequests.length})
-          </button>
+        <div className="toolbar" role="tablist" aria-label="Разделы заявок">
+          <div className="segmented">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={requestView === 'active'}
+              onClick={() => setRequestView('active')}
+            >
+              Активные <span>{activeRequests.length}</span>
+            </button>
 
-          <button
-            type="button"
-            role="tab"
-            aria-selected={requestView === 'archive'}
-            className={`btn ${requestView === 'archive' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setRequestView('archive')}
-          >
-            Архив ({archivedRequests.length})
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={requestView === 'archive'}
+              onClick={() => setRequestView('archive')}
+            >
+              Архив <span>{archivedRequests.length}</span>
+            </button>
+          </div>
+
+          <p className="muted-line">
+            {requestView === 'archive'
+              ? 'Выполненные и отклонённые обращения'
+              : 'Новые обращения и заявки в работе'}
+          </p>
         </div>
       )}
 
-      {error ? (
-        <ErrorBox
-          text={
-            error.status === 403
-              ? 'У вашей роли нет доступа к этому разделу.'
-              : 'Не удалось загрузить заявки. Проверьте соединение и повторите.'
-          }
-          onRetry={reload}
-        />
-      ) : loading ? (
-        <Skeleton blocks={3} />
-      ) : visibleRequests.length === 0 ? (
-        <EmptyState
-          icon="requests"
-          title={
-            isStaff
-              ? requestView === 'archive'
-                ? 'Архив пока пуст'
-                : 'Активных обращений нет'
-              : 'У вас пока нет заявок'
-          }
-          text={
-            isStaff
-              ? requestView === 'archive'
-                ? 'Здесь будут храниться выполненные и отклонённые заявки.'
-                : 'Новые обращения студентов появятся здесь.'
-              : 'Создайте первую заявку с помощью формы выше.'
-          }
-        />
-      ) : (
-        <div className="request-list">
-          {visibleRequests.map((item) => (
-            <RequestCard
-              key={item.id}
-              item={item}
-              isStaff={isStaff}
-              onUpdate={loadRequests}
-            />
-          ))}
-        </div>
-      )}
+      <div id="request-results">
+        {error ? (
+          <ErrorBox
+            text={
+              error.status === 403
+                ? 'У вашей роли нет доступа к этому разделу.'
+                : 'Не удалось загрузить заявки. Проверьте соединение и повторите.'
+            }
+            onRetry={reload}
+          />
+        ) : loading ? (
+          <Skeleton blocks={3} />
+        ) : visibleRequests.length === 0 ? (
+          <EmptyState
+            icon="requests"
+            title={
+              isStaff
+                ? requestView === 'archive'
+                  ? 'Архив пока пуст'
+                  : 'Активных обращений нет'
+                : 'У вас пока нет заявок'
+            }
+            text={
+              isStaff
+                ? requestView === 'archive'
+                  ? 'Здесь будут храниться выполненные и отклонённые заявки.'
+                  : 'Новые обращения студентов появятся здесь.'
+                : 'Создайте первую заявку с помощью формы выше.'
+            }
+          />
+        ) : (
+          <div className="request-list">
+            {visibleRequests.map((item) => (
+              <RequestCard
+                key={item.id}
+                item={item}
+                isStaff={isStaff}
+                isArchived={ARCHIVED_STATUSES.includes(item.status)}
+                onUpdate={loadRequests}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </>
   )
 }

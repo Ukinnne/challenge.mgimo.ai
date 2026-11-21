@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import ApiError, current_user, require_role
-from ..models import Announcement, Notification, StudentProfile, User
+from ..models import (
+    Announcement,
+    AnnouncementRead,
+    Notification,
+    StudentProfile,
+    User,
+)
 
 
 router = APIRouter(
@@ -22,18 +28,30 @@ AnnouncementCategory = Literal["announcement", "deadline"]
 
 
 class AnnouncementCreate(BaseModel):
-    title: str = Field(min_length=3, max_length=160)
-    body: str = Field(min_length=3, max_length=5000)
+    title: str = Field(min_length=1, max_length=160)
+    body: str = Field(min_length=1, max_length=5000)
     category: AnnouncementCategory = "announcement"
     target_group: str | None = Field(default=None, max_length=64)
     event_at: datetime | None = None
 
-    @field_validator("title", "body")
+    @field_validator("title")
     @classmethod
-    def clean_text(cls, value: str) -> str:
+    def clean_title(cls, value: str) -> str:
         value = value.strip()
-        if len(value) < 3:
-            raise ValueError("Текст слишком короткий")
+
+        if not value:
+            raise ValueError("Заголовок не может быть пустым")
+
+        return value
+
+    @field_validator("body")
+    @classmethod
+    def clean_body(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Текст объявления не может быть пустым")
+
         return value
 
     @field_validator("target_group")
@@ -42,7 +60,10 @@ class AnnouncementCreate(BaseModel):
         return value.strip() or None if value else None
 
 
-def serialize_announcement(item: Announcement) -> dict:
+def serialize_announcement(
+    item: Announcement,
+    is_read: bool | None = None,
+) -> dict:
     return {
         "id": item.id,
         "title": item.title,
@@ -51,6 +72,7 @@ def serialize_announcement(item: Announcement) -> dict:
         "target_group": item.target_group,
         "event_at": item.event_at.isoformat() if item.event_at else None,
         "created_at": item.created_at.isoformat(),
+        "is_read": is_read,
     }
 
 
@@ -67,12 +89,11 @@ def serialize_notification(item: Notification) -> dict:
     }
 
 
-@router.get("")
-def get_notifications(
-    user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+def visible_announcements_query(
+    user: User,
+    db: Session,
 ):
-    announcement_query = select(Announcement).where(
+    query = select(Announcement).where(
         Announcement.is_published.is_(True)
     )
 
@@ -80,42 +101,84 @@ def get_notifications(
         profile = db.get(StudentProfile, user.id)
 
         if profile is None:
-            announcement_query = announcement_query.where(
-                Announcement.target_group.is_(None)
-            )
+            query = query.where(Announcement.target_group.is_(None))
         else:
-            announcement_query = announcement_query.where(
+            query = query.where(
                 (Announcement.target_group.is_(None))
                 | (Announcement.target_group == profile.group_name)
             )
 
-    announcement_query = announcement_query.order_by(
-        Announcement.created_at.desc()
-    )
+    return query.order_by(Announcement.created_at.desc())
 
-    announcements = db.scalars(announcement_query).all()
 
-    notification_query = (
+@router.get("")
+def get_notifications(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    announcements = db.scalars(
+        visible_announcements_query(user, db)
+    ).all()
+
+    notifications = db.scalars(
         select(Notification)
         .where(Notification.user_id == user.id)
         .order_by(Notification.created_at.desc())
+    ).all()
+
+    read_announcement_ids: set[int] = set()
+
+    if user.role == "student":
+        read_announcement_ids = set(
+            db.scalars(
+                select(AnnouncementRead.announcement_id).where(
+                    AnnouncementRead.user_id == user.id
+                )
+            ).all()
+        )
+
+    unread_announcements = sum(
+        1
+        for item in announcements
+        if item.id not in read_announcement_ids
     )
 
-    notifications = db.scalars(notification_query).all()
-
-    unread_count = sum(
+    unread_personal = sum(
         1 for item in notifications if item.read_at is None
     )
 
     return {
         "announcements": [
-            serialize_announcement(item) for item in announcements
+            serialize_announcement(
+                item,
+                is_read=(
+                    item.id in read_announcement_ids
+                    if user.role == "student"
+                    else None
+                ),
+            )
+            for item in announcements
         ],
         "notifications": [
             serialize_notification(item) for item in notifications
         ],
-        "unread_count": unread_count,
+        "unread_count": unread_announcements + unread_personal,
     }
+
+
+@router.get("/groups")
+def get_student_groups(
+    _: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    groups = db.scalars(
+        select(StudentProfile.group_name)
+        .where(StudentProfile.group_name.is_not(None))
+        .distinct()
+        .order_by(StudentProfile.group_name)
+    ).all()
+
+    return {"groups": groups}
 
 
 @router.post("/announcements", status_code=201)
@@ -126,6 +189,16 @@ def create_announcement(
 ):
     if body.category == "deadline" and body.event_at is None:
         raise ApiError(400, "deadline_requires_event_date")
+
+    if body.target_group:
+        group_exists = db.scalar(
+            select(StudentProfile.user_id)
+            .where(StudentProfile.group_name == body.target_group)
+            .limit(1)
+        )
+
+        if group_exists is None:
+            raise ApiError(400, "student_group_not_found")
 
     announcement = Announcement(
         title=body.title,
@@ -144,6 +217,55 @@ def create_announcement(
     return serialize_announcement(announcement)
 
 
+@router.delete("/announcements/{announcement_id}")
+def delete_announcement(
+    announcement_id: int,
+    _: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    announcement = db.get(Announcement, announcement_id)
+
+    if announcement is None:
+        raise ApiError(404, "not_found")
+
+    db.delete(announcement)
+    db.commit()
+
+    return {"ok": True, "deleted_id": announcement_id}
+
+
+@router.patch("/announcements/{announcement_id}/read")
+def mark_announcement_read(
+    announcement_id: int,
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+):
+    announcement = db.scalar(
+        visible_announcements_query(user, db).where(
+            Announcement.id == announcement_id
+        )
+    )
+
+    if announcement is None:
+        raise ApiError(404, "not_found")
+
+    read_record = db.get(
+        AnnouncementRead,
+        (announcement_id, user.id),
+    )
+
+    if read_record is None:
+        db.add(
+            AnnouncementRead(
+                announcement_id=announcement_id,
+                user_id=user.id,
+            )
+        )
+        db.commit()
+
+    return {"ok": True, "announcement_id": announcement_id}
+
+
 @router.patch("/read-all")
 def mark_all_read(
     user: User = Depends(current_user),
@@ -160,11 +282,38 @@ def mark_all_read(
         .values(read_at=now)
     )
 
+    updated_announcements = 0
+
+    if user.role == "student":
+        announcements = db.scalars(
+            visible_announcements_query(user, db)
+        ).all()
+
+        read_ids = set(
+            db.scalars(
+                select(AnnouncementRead.announcement_id).where(
+                    AnnouncementRead.user_id == user.id
+                )
+            ).all()
+        )
+
+        for announcement in announcements:
+            if announcement.id not in read_ids:
+                db.add(
+                    AnnouncementRead(
+                        announcement_id=announcement.id,
+                        user_id=user.id,
+                        read_at=now,
+                    )
+                )
+                updated_announcements += 1
+
     db.commit()
 
     return {
         "ok": True,
-        "updated": result.rowcount or 0,
+        "updated_personal": result.rowcount or 0,
+        "updated_announcements": updated_announcements,
     }
 
 
