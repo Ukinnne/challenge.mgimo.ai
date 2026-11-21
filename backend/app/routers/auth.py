@@ -1,3 +1,4 @@
+
 from datetime import datetime, timedelta, timezone
 from math import ceil
 
@@ -29,8 +30,9 @@ class LoginIn(BaseModel):
 
 
 def serialize(user: User) -> dict:
-    """Что мы отдаём интерфейсу о пользователе. Хеш пароля сюда не попадает никогда."""
+    """Что мы отдаём интерфейсу о пользователе."""
     profile = None
+
     if user.role == "student" and user.student:
         s = user.student
         profile = {
@@ -42,63 +44,107 @@ def serialize(user: User) -> dict:
             "record_book": s.record_book,
         }
     elif user.role == "staff" and user.staff:
-        profile = {"full_name": user.staff.full_name, "position": user.staff.position}
-    return {"user": {"login": user.login, "role": user.role, "profile": profile}}
+        profile = {
+            "full_name": user.staff.full_name,
+            "position": user.staff.position,
+        }
+
+    return {
+        "user": {
+            "login": user.login,
+            "role": user.role,
+            "profile": profile,
+        }
+    }
 
 
-def create_session(db: Session, user: User, user_agent: str | None) -> str:
-    # заодно чистим просроченные сессии
-    db.execute(delete(AuthSession).where(AuthSession.expires_at < func.now()))
-    token = new_token()  # при каждом входе выдаётся новый токен
+def create_session(
+    db: Session,
+    user: User,
+    user_agent: str | None,
+) -> str:
+    """Создаёт новую серверную сессию."""
+    db.execute(
+        delete(AuthSession).where(
+            AuthSession.expires_at < func.now()
+        )
+    )
+
+    token = new_token()
+
     db.add(
         AuthSession(
             token_hash=token_hash(token),
             user_id=user.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.session_days),
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.session_days),
             user_agent=(user_agent or "")[:200],
         )
     )
+
     db.commit()
     return token
 
 
 @router.post("/login")
 def login(
-    body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)
+    body: LoginIn,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
 ):
-    user = db.scalar(select(User).where(func.lower(User.login) == body.login.lower()))
+    user = db.scalar(
+        select(User).where(
+            func.lower(User.login) == body.login.lower()
+        )
+    )
+
     now = datetime.now(timezone.utc)
 
-    # 1. Аккаунт заблокирован?
     if user and user.locked_until and user.locked_until > now:
-        minutes = ceil((user.locked_until - now).total_seconds() / 60)
+        minutes = ceil(
+            (user.locked_until - now).total_seconds() / 60
+        )
         raise ApiError(429, "locked", minutes=minutes)
 
-    # 2. Проверяем пароль (для несуществующего логина сверяем с «пустышкой»)
-    ok = verify_password(user.password_hash if user else DUMMY_HASH, body.password)
+    ok = verify_password(
+        user.password_hash if user else DUMMY_HASH,
+        body.password,
+    )
+
     if user is None or not ok:
         if user:
             user.failed_attempts += 1
+
             if user.failed_attempts >= settings.max_failed_attempts:
-                user.locked_until = now + timedelta(minutes=settings.lock_minutes)
+                user.locked_until = now + timedelta(
+                    minutes=settings.lock_minutes
+                )
                 user.failed_attempts = 0
+
             db.commit()
-        # одинаковый ответ и для неверного логина, и для неверного пароля
+
         raise ApiError(401, "invalid_credentials")
 
-    # 3. Успех: сбрасываем счётчик, создаём сессию, отдаём куку
     user.failed_attempts = 0
     user.locked_until = None
-    token = create_session(db, user, request.headers.get("user-agent"))
+
+    token = create_session(
+        db,
+        user,
+        request.headers.get("user-agent"),
+    )
+
     response.set_cookie(
         COOKIE,
         token,
-        httponly=True,                 # JavaScript страницы не видит токен
-        samesite="lax",                # базовая защита от подделки запросов с чужих сайтов
+        httponly=True,
+        samesite="lax",
         secure=settings.cookie_secure,
         max_age=settings.session_days * 86400,
         path="/",
     )
+
     return serialize(user)
 
 
@@ -108,10 +154,19 @@ def me(user: User = Depends(current_user)):
 
 
 @router.post("/logout", status_code=204)
-def logout(sid: str | None = Cookie(default=None), db: Session = Depends(get_db)):
+def logout(
+    response: Response,
+    sid: str | None = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
     if sid:
-        db.execute(delete(AuthSession).where(AuthSession.token_hash == token_hash(sid)))
+        db.execute(
+            delete(AuthSession).where(
+                AuthSession.token_hash == token_hash(sid)
+            )
+        )
         db.commit()
-    response = Response(status_code=204)
+
     response.delete_cookie(COOKIE, path="/")
+
     return response
