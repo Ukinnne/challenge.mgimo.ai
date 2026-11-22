@@ -73,12 +73,12 @@ def apply_changes(lessons, today):
         if len(dates) < 3:
             continue
 
-        moved = [l for l in mine if l.lesson_date == dates[0]][0]
+        moved = next(l for l in mine if l.lesson_date == dates[0])
         moved.status = "moved"
         moved.note = f"Аудитория изменена: вместо {moved.room}"
         moved.room = "ауд. 408"
 
-        cancelled = [l for l in mine if l.lesson_date == dates[1]][0]
+        cancelled = next(l for l in mine if l.lesson_date == dates[1])
         cancelled.status = "cancelled"
         cancelled.note = "Занятие отменено, преподаватель на конференции"
 

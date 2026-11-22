@@ -16,7 +16,6 @@ from ..models import (
     User,
 )
 
-
 router = APIRouter(prefix="/api/requests", tags=["requests"])
 
 

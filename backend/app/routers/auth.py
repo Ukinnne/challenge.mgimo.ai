@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from math import ceil
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
@@ -76,7 +76,7 @@ def create_session(
         AuthSession(
             token_hash=token_hash(token),
             user_id=user.id,
-            expires_at=datetime.now(timezone.utc)
+            expires_at=datetime.now(UTC)
             + timedelta(days=settings.session_days),
             user_agent=(user_agent or "")[:200],
         )
@@ -99,7 +99,7 @@ def login(
         )
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if user and user.locked_until and user.locked_until > now:
         minutes = ceil(

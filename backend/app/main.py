@@ -1,4 +1,3 @@
-
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -10,7 +9,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .db import get_db
 from .deps import ApiError
 from .routers import auth, grades, notifications, requests, schedule
-
 
 app = FastAPI(
     title="Деканат Next API",
@@ -60,9 +58,7 @@ def health():
 @app.get("/api/health/db")
 def health_db(db: Session = Depends(get_db)):
     try:
-        version = db.execute(
-            text("select version()")
-        ).scalar_one()
+        db.execute(text("SELECT 1"))
     except SQLAlchemyError:
         return JSONResponse(
             {"ok": False},
@@ -71,5 +67,5 @@ def health_db(db: Session = Depends(get_db)):
 
     return {
         "ok": True,
-        "version": version.split(",")[0],
+        "database": "connected",
     }
