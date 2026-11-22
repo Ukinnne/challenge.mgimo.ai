@@ -1,6 +1,8 @@
 
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
+import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
 import Waves from '../components/Waves.jsx'
@@ -168,6 +170,27 @@ function StudentAnnouncements({ data, error, reload }) {
   const announcements = data?.announcements ?? []
   const unreadCount = data?.unread_announcement_count ?? 0
 
+  const [readingId, setReadingId] = useState(null)
+  const [actionError, setActionError] = useState('')
+
+  async function markAnnouncementRead(id) {
+    setReadingId(id)
+    setActionError('')
+
+    try {
+      await api(`/notifications/announcements/${id}/read`, {
+        method: 'PATCH',
+      })
+
+      reload()
+      window.dispatchEvent(new Event('notifications:updated'))
+    } catch {
+      setActionError('Не удалось отметить объявление прочитанным. Попробуй ещё раз')
+    } finally {
+      setReadingId(null)
+    }
+  }
+
   return (
     <section className="panel home-announcements">
       <div className="home-announcements-head">
@@ -205,8 +228,20 @@ function StudentAnnouncements({ data, error, reload }) {
         </div>
       ) : announcements.length > 0 ? (
         <div className="notification-list">
+          {actionError && (
+            <div className="notification-error" role="alert">
+              <Icon name="alert" size={18} />
+              <span>{actionError}</span>
+            </div>
+          )}
+
           {announcements.slice(0, 2).map((item) => (
-            <AnnouncementCard key={item.id} item={item} />
+            <AnnouncementCard
+              key={item.id}
+              item={item}
+              onRead={markAnnouncementRead}
+              reading={readingId === item.id}
+            />
           ))}
         </div>
       ) : (
