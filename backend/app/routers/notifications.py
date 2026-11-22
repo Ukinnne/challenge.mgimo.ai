@@ -1,5 +1,5 @@
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -16,7 +16,6 @@ from ..models import (
     StudentProfile,
     User,
 )
-
 
 router = APIRouter(
     prefix="/api/notifications",
@@ -276,7 +275,7 @@ def mark_all_read(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = db.execute(
         update(Notification)
@@ -339,7 +338,7 @@ def mark_notification_read(
         raise ApiError(404, "not_found")
 
     if notification.read_at is None:
-        notification.read_at = datetime.now(timezone.utc)
+        notification.read_at = datetime.now(UTC)
         db.commit()
         db.refresh(notification)
 
