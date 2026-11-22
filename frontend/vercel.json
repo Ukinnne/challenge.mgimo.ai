@@ -4,6 +4,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://dekanat-next-api.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
