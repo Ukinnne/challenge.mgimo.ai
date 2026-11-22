@@ -1,8 +1,8 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../auth.jsx'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
 import Waves from '../components/Waves.jsx'
@@ -167,11 +167,17 @@ function Changes({ data, error }) {
 }
 
 function StudentAnnouncements({ data, error, reload }) {
+  const [readingId, setReadingId] = useState(null)
+  const [actionError, setActionError] = useState('')
+
   const announcements = data?.announcements ?? []
   const unreadCount = data?.unread_announcement_count ?? 0
 
-  const [readingId, setReadingId] = useState(null)
-  const [actionError, setActionError] = useState('')
+  // Прочитанные обычные объявления скрываем.
+  // Дедлайны остаются на главной независимо от прочитанности.
+  const visibleAnnouncements = announcements.filter(
+    (item) => item.category === 'deadline' || !item.is_read,
+  )
 
   async function markAnnouncementRead(id) {
     setReadingId(id)
@@ -185,7 +191,7 @@ function StudentAnnouncements({ data, error, reload }) {
       reload()
       window.dispatchEvent(new Event('notifications:updated'))
     } catch {
-      setActionError('Не удалось отметить объявление прочитанным. Попробуй ещё раз')
+      setActionError('Не удалось отметить уведомление прочитанным')
     } finally {
       setReadingId(null)
     }
@@ -226,16 +232,9 @@ function StudentAnnouncements({ data, error, reload }) {
           <div className="notification-skeleton" />
           <div className="notification-skeleton" />
         </div>
-      ) : announcements.length > 0 ? (
+      ) : visibleAnnouncements.length > 0 ? (
         <div className="notification-list">
-          {actionError && (
-            <div className="notification-error" role="alert">
-              <Icon name="alert" size={18} />
-              <span>{actionError}</span>
-            </div>
-          )}
-
-          {announcements.slice(0, 2).map((item) => (
+          {visibleAnnouncements.slice(0, 2).map((item) => (
             <AnnouncementCard
               key={item.id}
               item={item}
@@ -252,6 +251,12 @@ function StudentAnnouncements({ data, error, reload }) {
           <h3>Новых объявлений пока нет</h3>
           <p>Здесь появятся важные новости и напоминания от деканата</p>
         </div>
+      )}
+
+      {actionError && (
+        <p className="notification-form-error" role="alert">
+          {actionError}
+        </p>
       )}
     </section>
   )
