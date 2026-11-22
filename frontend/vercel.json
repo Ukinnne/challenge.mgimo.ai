@@ -1,0 +1,9 @@
+
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://dekanat-next-api.onrender.com/api/:path*"
+    }
+  ]
+}
