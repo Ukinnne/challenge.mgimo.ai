@@ -1,0 +1,110 @@
+
+/* Общая система анимаций Деканат Next */
+
+:root {
+  --motion-ease: cubic-bezier(.2, .75, .25, 1);
+  --motion-fast: 160ms;
+  --motion-normal: 230ms;
+  --motion-slow: 380ms;
+}
+
+/* Единая скорость уже существующих переходов */
+
+button,
+a,
+input,
+textarea,
+select,
+[role="button"],
+.tile,
+.panel,
+.card,
+.notification-card,
+.request-card,
+.lesson-card,
+.strip-day,
+.nav-link,
+.icon-btn {
+  transition-duration: var(--motion-normal) !important;
+  transition-timing-function: var(--motion-ease) !important;
+}
+
+/* Плавное появление содержимого при смене страницы */
+
+@media (prefers-reduced-motion: no-preference) {
+  .content > :not(.note) {
+    animation: app-content-enter var(--motion-slow) var(--motion-ease) both;
+  }
+
+  .content > :nth-child(2):not(.note) {
+    animation-delay: 35ms;
+  }
+
+  .content > :nth-child(3):not(.note) {
+    animation-delay: 65ms;
+  }
+
+  .content > :nth-child(4):not(.note) {
+    animation-delay: 95ms;
+  }
+}
+
+@keyframes app-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Небольшая тактильная реакция на нажатие */
+
+button:not(:disabled):active,
+[role="button"]:active,
+.tile:active,
+.nav-link:active {
+  transform: scale(.985);
+}
+
+/* Плавная обратная связь полей */
+
+input,
+textarea,
+select {
+  transition:
+    border-color var(--motion-normal) var(--motion-ease),
+    box-shadow var(--motion-normal) var(--motion-ease),
+    background-color var(--motion-normal) var(--motion-ease);
+}
+
+/* Уведомления и карточки */
+
+.notification-card,
+.request-card,
+.lesson-card,
+.tile,
+.panel,
+.card {
+  will-change: auto;
+}
+
+/* Уважение системной настройки уменьшения движения */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .content > :not(.note) {
+    animation: none !important;
+  }
+}
