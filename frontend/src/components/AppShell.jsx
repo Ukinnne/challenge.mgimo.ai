@@ -22,7 +22,9 @@ export default function AppShell() {
   const [unreadCount, setUnreadCount] = useState(0)
 
   const name = user.profile?.full_name ?? user.login
-  const items = ITEMS.filter((item) => !item.roles || item.roles.includes(user.role))
+  const items = ITEMS.filter(
+    (item) => !item.roles || item.roles.includes(user.role),
+  )
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -54,12 +56,14 @@ export default function AppShell() {
     const interval = window.setInterval(loadUnreadCount, 15000)
 
     window.addEventListener('focus', loadUnreadCount)
+    window.addEventListener('notifications:updated', loadUnreadCount)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       active = false
       window.clearInterval(interval)
       window.removeEventListener('focus', loadUnreadCount)
+      window.removeEventListener('notifications:updated', loadUnreadCount)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [pathname])

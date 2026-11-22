@@ -5,9 +5,8 @@ import Icon from '../components/Icon.jsx'
 import { Skeleton } from '../components/States.jsx'
 import Waves from '../components/Waves.jsx'
 import { useFetch } from '../hooks.js'
-import {
-  AnnouncementCard,
-} from './Notifications.jsx'
+import { AnnouncementCard } from './Notifications.jsx'
+import './Home.css'
 import { firstName, formatDay, greeting, lessonsWord } from '../utils.js'
 
 const STATUS = {
@@ -167,21 +166,28 @@ function Changes({ data, error }) {
 
 function StudentAnnouncements({ data, error, reload }) {
   const announcements = data?.announcements ?? []
-  const unreadCount = data?.unread_count ?? 0
+  const unreadCount = data?.unread_announcement_count ?? 0
 
   return (
     <section className="panel home-announcements">
       <div className="home-announcements-head">
-        <div>
+        <div className="home-announcements-title">
           <span className="section-eyebrow">Будь в курсе</span>
           <h2 className="panel-title">Новости деканата</h2>
         </div>
 
-        {unreadCount > 0 && (
-          <span className="home-unread-bubble">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
+        <div className="home-announcements-actions">
+          {unreadCount > 0 && (
+            <span className="home-unread-bubble">
+              <strong>{unreadCount > 99 ? '99+' : unreadCount}</strong>
+              <span>непрочитанных</span>
+            </span>
+          )}
+
+          <Link to="/notifications" className="home-announcements-link">
+            Все уведомления <Icon name="right" size={16} />
+          </Link>
+        </div>
       </div>
 
       {error ? (
@@ -212,10 +218,6 @@ function StudentAnnouncements({ data, error, reload }) {
           <p>Здесь появятся важные новости и напоминания от деканата</p>
         </div>
       )}
-
-      <Link to="/notifications" className="btn-link home-announcements-link">
-        Все уведомления <Icon name="right" size={16} />
-      </Link>
     </section>
   )
 }
@@ -252,7 +254,7 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="home-grid">
+      <div className={`home-grid ${isStudent ? '' : 'staff-home-grid'}`}>
         {isStudent ? (
           <>
             <Hero data={data} error={error} reload={reload} />
@@ -264,18 +266,17 @@ export default function Home() {
             />
           </>
         ) : (
-          <section className="hero hero-wide">
-            <Waves />
-            <p className="hero-kicker">Рабочее пространство</p>
-            <h2 className="hero-title">Управление деканатом</h2>
-            <p className="hero-text">
-              Обрабатывайте обращения студентов, публикуйте объявления
-              и следите за важными событиями в одном месте.
+          <header className="staff-home-intro">
+            <span className="section-eyebrow">Рабочее пространство</span>
+            <h2>Управление деканатом</h2>
+            <p>
+              Обрабатывайте обращения студентов и публикуйте важные объявления
+              в одном месте.
             </p>
-          </section>
+          </header>
         )}
 
-        <div className="tiles">
+        <div className={`tiles ${isStudent ? '' : 'staff-tiles'}`}>
           {tiles.map((tile) => (
             <Link key={tile.to} to={tile.to} className="tile">
               <span className="tile-icon">

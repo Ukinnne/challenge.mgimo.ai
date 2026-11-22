@@ -1,0 +1,129 @@
+
+.strip-day {
+  position: relative;
+  border: 1px solid #e5ebe5;
+  background: #fff;
+  transition:
+    border-color .18s ease,
+    background-color .18s ease,
+    box-shadow .18s ease,
+    transform .18s ease;
+}
+
+.strip-day:hover {
+  transform: translateY(-1px);
+  border-color: #c6d9d1;
+}
+
+.strip-day.has-changes {
+  border-color: #ead7ad;
+  background: #fcf7eb;
+}
+
+.strip-day.has-changes .strip-num {
+  color: #8b713e;
+}
+
+.strip-day.is-selected {
+  border-color: #6f9e8b;
+  background: #edf5f0;
+  box-shadow: 0 0 0 2px rgba(71, 125, 101, .10);
+}
+
+.strip-day.is-selected .strip-num {
+  color: #285e54;
+}
+
+.strip-day.is-selected.has-changes {
+  border-color: #d2a94f;
+  background: #fbf3df;
+  box-shadow: 0 0 0 2px rgba(210, 169, 79, .13);
+}
+
+.strip-day.is-selected.has-changes .strip-num {
+  color: #84652d;
+}
+
+.strip-day.is-today::after {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4e9678;
+  content: '';
+}
+
+.strip-day.is-today.has-changes::after {
+  background: #4e9678;
+}
+
+.strip-flag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d6a94f;
+  box-shadow: 0 0 0 2px rgba(214, 169, 79, .16);
+}
+
+.strip-day.is-selected .strip-flag {
+  background: #b88b35;
+}
+
+.strip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin: 0 0 17px;
+  color: #89958f;
+  font-size: 10px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-dot,
+.legend-today {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.legend-dot {
+  background: #d6a94f;
+}
+
+.legend-today {
+  background: #4e9678;
+}
+
+@media (max-width: 560px) {
+  .strip-day.is-today::after {
+    top: 5px;
+    left: 5px;
+    width: 5px;
+    height: 5px;
+  }
+
+  .strip-flag {
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+  }
+
+  .strip-legend {
+    gap: 7px 13px;
+    font-size: 9px;
+  }
+}

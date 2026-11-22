@@ -1,0 +1,160 @@
+
+.notification-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5ebe5;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.notification-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f4f1;
+}
+
+.notification-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #74827b;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .18s, color .18s, box-shadow .18s;
+}
+
+.notification-filter span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 20px;
+  background: rgba(40, 94, 84, .08);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notification-filter.is-active {
+  background: #fff;
+  color: #285e54;
+  box-shadow: 0 1px 4px rgba(20, 45, 40, .09);
+}
+
+.notification-mark-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 37px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.notification-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 110px;
+}
+
+.notification-read-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  color: #6d9180;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.notification-card {
+  transition:
+    border-color .25s ease,
+    background-color .25s ease,
+    opacity .25s ease,
+    transform .2s ease,
+    box-shadow .25s ease;
+}
+
+.notification-card.is-unread {
+  border-color: #d6e4dc;
+  background: #fcfefc;
+}
+
+.notification-card.is-read {
+  border-color: #e7ece7;
+  background: #fff;
+}
+
+.notification-card.is-read .notification-icon {
+  background: #edf3ef;
+  color: #6d9180;
+}
+
+.notification-card .unread-dot {
+  flex: none;
+  animation: unread-appear .25s ease both;
+}
+
+@keyframes unread-appear {
+  from {
+    opacity: 0;
+    transform: scale(.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.notification-hint {
+  color: #89958f;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .notification-toolbar {
+    align-items: stretch;
+  }
+
+  .notification-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .notification-filter {
+    gap: 4px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .notification-mark-all {
+    width: 100%;
+  }
+
+  .notification-actions {
+    min-width: 0;
+  }
+}
+
+.notification-card.is-read {
+  opacity: 1;
+}

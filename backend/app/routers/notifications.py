@@ -89,10 +89,7 @@ def serialize_notification(item: Notification) -> dict:
     }
 
 
-def visible_announcements_query(
-    user: User,
-    db: Session,
-):
+def visible_announcements_query(user: User, db: Session):
     query = select(Announcement).where(
         Announcement.is_published.is_(True)
     )
@@ -137,10 +134,16 @@ def get_notifications(
             ).all()
         )
 
-    unread_announcements = sum(
-        1
-        for item in announcements
-        if item.id not in read_announcement_ids
+    # У сотрудников нет персональных отметок о прочтении общих объявлений.
+    # Поэтому их нельзя считать непрочитанными в счётчике сотрудника.
+    unread_announcements = (
+        sum(
+            1
+            for item in announcements
+            if item.id not in read_announcement_ids
+        )
+        if user.role == "student"
+        else 0
     )
 
     unread_personal = sum(
@@ -163,6 +166,8 @@ def get_notifications(
             serialize_notification(item) for item in notifications
         ],
         "unread_count": unread_announcements + unread_personal,
+        "unread_announcement_count": unread_announcements,
+        "unread_personal_count": unread_personal,
     }
 
 

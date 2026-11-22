@@ -1,8 +1,9 @@
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import './Notifications.css'
+import './NotificationsEnhancements.css'
 
 function formatDate(value) {
   if (!value) return ''
@@ -39,11 +40,29 @@ function getApiError(err, fallback) {
   const detail = err?.data?.detail
 
   if (typeof detail === 'string') return detail
+
   if (Array.isArray(detail)) {
     return detail.map((item) => item.msg).filter(Boolean).join('. ')
   }
 
   return fallback
+}
+
+function notifyCountChanged() {
+  window.dispatchEvent(new Event('notifications:updated'))
+}
+
+function isPersonalRead(item) {
+  return Boolean(item.read_at || item.is_read)
+}
+
+function matchesFilter(item, filter, personal = false) {
+  const isRead = personal ? isPersonalRead(item) : Boolean(item.is_read)
+
+  if (filter === 'unread') return !isRead
+  if (filter === 'archive') return isRead
+
+  return true
 }
 
 export function AnnouncementCard({
@@ -63,7 +82,8 @@ export function AnnouncementCard({
         'notification-card',
         'announcement-card',
         isDeadline ? 'deadline-card' : '',
-        !isStaff && !isRead ? 'announcement-unread' : '',
+        !isStaff && isRead ? 'is-read' : '',
+        !isStaff && !isRead ? 'is-unread' : '',
       ].filter(Boolean).join(' ')}
     >
       <div className="notification-icon">
@@ -112,8 +132,15 @@ export function AnnouncementCard({
                 disabled={reading}
                 onClick={() => onRead?.(item.id)}
               >
-                {reading ? 'Сохраняем...' : 'Прочитано'}
+                {reading ? 'Сохраняем...' : 'Отметить прочитанным'}
               </button>
+            )}
+
+            {!isStaff && isRead && (
+              <span className="notification-read-status">
+                <Icon name="check" size={14} />
+                Прочитано
+              </span>
             )}
 
             {isStaff && (
@@ -134,10 +161,16 @@ export function AnnouncementCard({
 }
 
 function PersonalNotificationCard({ item, onRead, loading }) {
-  const isRead = Boolean(item.read_at || item.is_read)
+  const isRead = isPersonalRead(item)
 
   return (
-    <article className={`notification-card personal-card ${isRead ? 'is-read' : 'is-unread'}`}>
+    <article
+      className={[
+        'notification-card',
+        'personal-card',
+        isRead ? 'is-read' : 'is-unread',
+      ].join(' ')}
+    >
       <div className="notification-icon">
         <Icon name={isRead ? 'check' : 'bell'} size={21} />
       </div>
@@ -150,7 +183,9 @@ function PersonalNotificationCard({ item, onRead, loading }) {
               : 'Личное уведомление'}
           </span>
 
-          {!isRead && <span className="unread-dot" aria-label="Не прочитано" />}
+          {!isRead && (
+            <span className="unread-dot" aria-label="Не прочитано" />
+          )}
         </div>
 
         <h3>{item.title}</h3>
@@ -161,15 +196,20 @@ function PersonalNotificationCard({ item, onRead, loading }) {
             {formatDate(item.created_at)}
           </time>
 
-          {!isRead && (
+          {!isRead ? (
             <button
               className="btn-link notification-read"
               type="button"
               disabled={loading}
               onClick={() => onRead(item.id)}
             >
-              {loading ? 'Сохраняем...' : 'Отметить прочитанным'}
+              {loading ? 'Сохраняем...' : 'Прочитано'}
             </button>
+          ) : (
+            <span className="notification-read-status">
+              <Icon name="check" size={14} />
+              Прочитано
+            </span>
           )}
         </div>
       </div>
@@ -251,6 +291,7 @@ export function AnnouncementForm({ onCreated }) {
       setEventAt('')
 
       await onCreated?.()
+      notifyCountChanged()
     } catch (err) {
       setError(
         getApiError(
@@ -372,6 +413,7 @@ export default function Notifications({ user }) {
   const [readingId, setReadingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [markingAll, setMarkingAll] = useState(false)
+  const [filter, setFilter] = useState('all')
 
   const isStaff = user?.role === 'staff'
 
@@ -395,6 +437,28 @@ export default function Notifications({ user }) {
     loadNotifications()
   }, [loadNotifications])
 
+  const visibleAnnouncements = useMemo(
+    () => isStaff
+      ? announcements
+      : announcements.filter((item) => matchesFilter(item, filter)),
+    [announcements, filter, isStaff],
+  )
+
+  const visibleNotifications = useMemo(
+    () => notifications.filter(
+      (item) => matchesFilter(item, filter, true),
+    ),
+    [notifications, filter],
+  )
+
+  const unreadAnnouncements = announcements.filter(
+    (item) => !item.is_read,
+  ).length
+
+  const unreadPersonal = notifications.filter(
+    (item) => !isPersonalRead(item),
+  ).length
+
   async function markAnnouncementRead(id) {
     setReadingId(id)
 
@@ -410,6 +474,7 @@ export default function Notifications({ user }) {
       )
 
       setUnreadCount((count) => Math.max(0, count - 1))
+      notifyCountChanged()
     } catch (err) {
       setError(getApiError(err, 'Не удалось отметить объявление прочитанным'))
     } finally {
@@ -432,8 +497,9 @@ export default function Notifications({ user }) {
       )
 
       setUnreadCount((count) => Math.max(0, count - 1))
-    } catch {
-      setError('Не удалось отметить уведомление прочитанным')
+      notifyCountChanged()
+    } catch (err) {
+      setError(getApiError(err, 'Не удалось отметить уведомление прочитанным'))
     } finally {
       setReadingId(null)
     }
@@ -459,6 +525,7 @@ export default function Notifications({ user }) {
       )
 
       await loadNotifications()
+      notifyCountChanged()
     } catch (err) {
       setError(getApiError(err, 'Не удалось удалить объявление'))
     } finally {
@@ -486,12 +553,22 @@ export default function Notifications({ user }) {
       )
 
       setUnreadCount(0)
+      setFilter('archive')
+      notifyCountChanged()
     } catch (err) {
       setError(getApiError(err, 'Не удалось отметить уведомления прочитанными'))
     } finally {
       setMarkingAll(false)
     }
   }
+
+  const filterOptions = [
+    { value: 'unread', label: 'Непрочитанные', count: unreadCount },
+    { value: 'all', label: 'Все', count: announcements.length + notifications.length },
+    { value: 'archive', label: 'Архив', count: announcements.length - unreadAnnouncements + notifications.length - unreadPersonal },
+  ]
+
+  const hasVisibleItems = visibleAnnouncements.length + visibleNotifications.length > 0
 
   return (
     <div className="notifications-page">
@@ -512,7 +589,7 @@ export default function Notifications({ user }) {
 
         {unreadCount > 0 && (
           <div className="unread-counter">
-            <strong>{unreadCount}</strong>
+            <strong>{unreadCount > 99 ? '99+' : unreadCount}</strong>
             <span>непрочитанных</span>
           </div>
         )}
@@ -532,6 +609,37 @@ export default function Notifications({ user }) {
         <AnnouncementForm onCreated={loadNotifications} />
       )}
 
+      {!isStaff && (
+        <div className="notification-toolbar">
+          <div className="notification-filters" role="group" aria-label="Фильтр уведомлений">
+            {filterOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`notification-filter ${filter === option.value ? 'is-active' : ''}`}
+                aria-pressed={filter === option.value}
+                onClick={() => setFilter(option.value)}
+              >
+                {option.label}
+                <span>{option.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {unreadCount > 0 && (
+            <button
+              className="btn btn-primary notification-mark-all"
+              type="button"
+              onClick={markAllAsRead}
+              disabled={markingAll}
+            >
+              <Icon name="check" size={16} />
+              {markingAll ? 'Сохраняем...' : 'Прочитать все'}
+            </button>
+          )}
+        </div>
+      )}
+
       <section className="notification-section">
         <div className="notification-section-heading">
           <div>
@@ -541,7 +649,9 @@ export default function Notifications({ user }) {
             <h2>{isStaff ? 'Управление объявлениями' : 'Объявления'}</h2>
           </div>
 
-          <span className="section-count">{announcements.length}</span>
+          <span className="section-count">
+            {isStaff ? announcements.length : visibleAnnouncements.length}
+          </span>
         </div>
 
         {loading ? (
@@ -549,9 +659,9 @@ export default function Notifications({ user }) {
             <div className="notification-skeleton" />
             <div className="notification-skeleton" />
           </div>
-        ) : announcements.length > 0 ? (
+        ) : visibleAnnouncements.length > 0 ? (
           <div className="notification-list">
-            {announcements.map((item) => (
+            {visibleAnnouncements.map((item) => (
               <AnnouncementCard
                 key={item.id}
                 item={item}
@@ -566,12 +676,18 @@ export default function Notifications({ user }) {
         ) : (
           <div className="notification-empty">
             <div className="notification-empty-icon">
-              <Icon name="bell" size={22} />
+              <Icon name={filter === 'archive' ? 'archive' : 'bell'} size={22} />
             </div>
-            <h3>Пока нет объявлений</h3>
+            <h3>
+              {filter === 'archive'
+                ? 'Архив объявлений пуст'
+                : filter === 'unread'
+                  ? 'Непрочитанных объявлений нет'
+                  : 'Пока нет объявлений'}
+            </h3>
             <p>
-              {isStaff
-                ? 'Опубликуйте первое объявление для студентов'
+              {filter === 'archive'
+                ? 'Прочитанные новости деканата будут храниться здесь'
                 : 'Когда появятся новости деканата, они будут здесь'}
             </p>
           </div>
@@ -586,16 +702,9 @@ export default function Notifications({ user }) {
               <h2>Личные уведомления</h2>
             </div>
 
-            {unreadCount > 0 && (
-              <button
-                className="btn-link mark-all-button"
-                type="button"
-                onClick={markAllAsRead}
-                disabled={markingAll}
-              >
-                {markingAll ? 'Сохраняем...' : 'Прочитать все'}
-              </button>
-            )}
+            <span className="section-count">
+              {visibleNotifications.length}
+            </span>
           </div>
 
           {loading ? (
@@ -603,9 +712,9 @@ export default function Notifications({ user }) {
               <div className="notification-skeleton" />
               <div className="notification-skeleton" />
             </div>
-          ) : notifications.length > 0 ? (
+          ) : visibleNotifications.length > 0 ? (
             <div className="notification-list">
-              {notifications.map((item) => (
+              {visibleNotifications.map((item) => (
                 <PersonalNotificationCard
                   key={item.id}
                   item={item}
@@ -617,9 +726,15 @@ export default function Notifications({ user }) {
           ) : (
             <div className="notification-empty">
               <div className="notification-empty-icon">
-                <Icon name="check" size={22} />
+                <Icon name={filter === 'archive' ? 'archive' : 'check'} size={22} />
               </div>
-              <h3>Всё спокойно</h3>
+              <h3>
+                {filter === 'archive'
+                  ? 'Архив личных уведомлений пуст'
+                  : filter === 'unread'
+                    ? 'Непрочитанных личных уведомлений нет'
+                    : 'Личных уведомлений пока нет'}
+              </h3>
               <p>
                 Личные уведомления о заявках и изменениях появятся здесь
               </p>
@@ -628,17 +743,10 @@ export default function Notifications({ user }) {
         </section>
       )}
 
-      {!isStaff && unreadCount > 0 && (
-        <div className="notification-bottom-action">
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={markAllAsRead}
-            disabled={markingAll}
-          >
-            {markingAll ? 'Сохраняем...' : 'Отметить всё прочитанным'}
-          </button>
-        </div>
+      {!isStaff && !loading && !hasVisibleItems && (
+        <p className="notification-hint">
+          Переключи фильтр, чтобы посмотреть другие уведомления
+        </p>
       )}
     </div>
   )
